@@ -21,6 +21,14 @@ const locations = [
         desc: "2026.1.12。千本鳥居旁的流水聲，午後的泉水帶著苔蘚的濕氣與山林的幽靜。"
     },
     {
+        id: "arashiyama",
+        name: "京都・嵐山",
+        coords: [35.0094, 135.6667],
+        audio: "audio/arashiyama.mp3",
+        image: "images/arashiyama.jpg",
+        desc: "2026.1.14。竹林小徑上僧人吹奏尺八的聲音。"
+    },
+    {
         id: "takamatsu",
         name: "高松・瀨戶內海",
         coords: [34.3503, 134.0465],
@@ -43,6 +51,22 @@ const locations = [
         audio: "audio/uji.mp3",
         image: "images/uji.jpg",
         desc: "2026.1.17。宇治橋下湍急的川流聲，伴隨著兩岸茶香，記錄下流動的時間。"
+    },
+    {
+        id: "inapark",
+        name: "長野・伊那公園",
+        coords: [35.8361, 137.9711],
+        audio: "audio/inapark.mp3",
+        image: "images/inapark.jpg",
+        desc: "2026.4.2。信州高地的清晨，公園內高大松樹間的鳥鳴，空氣中仍帶著殘雪的涼意。"
+    },
+    {
+        id: "inahigh",
+        name: "長野・伊那北高中",
+        coords: [35.8505, 137.9614],
+        audio: "audio/inahigh.mp3",
+        image: "images/inahigh.jpg",
+        desc: "2026.4.3。校園放學後的寧靜，南阿爾卑斯山下的微風。"
     }
 ];
 
