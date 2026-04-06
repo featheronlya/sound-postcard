@@ -3,16 +3,16 @@
  */
 
 const locations = [
-    { id: "nara", name: "奈良・唐招提寺", coords: [34.6761, 135.7844], audio: "audio/nara.mp3", image: "images/nara.jpg", desc: "2026.01.16。冬日午後的寺院，鳥鳴聲在木造建築間迴盪，空氣中彷彿能聽見寧靜。" },
-    { id: "fushimi", name: "京都・伏見稻荷", coords: [34.9671, 135.7727], audio: "audio/fushimi.mp3", image: "images/fushimi.jpg", desc: "2026.1.12。千本鳥居旁的流水聲，午後的泉水帶著苔蘚的濕氣與山林的幽靜。" },
-    { id: "arashiyama", name: "京都・嵐山", coords: [35.0094, 135.6667], audio: "audio/arashiyama.mp3", image: "images/arashiyama.jpg", desc: "2026.1.14。渡月橋邊的風聲與桂川細浪，竹林深處偶爾傳來的葉片摩擦聲。" },
-    { id: "takamatsu", name: "高松・高松港", coords: [34.3503, 134.0465], audio: "audio/takamatsu.mp3", image: "images/takamatsu.jpg", desc: "2026.3.11。港口的平靜海風，夾雜著遠處微弱的船笛聲。" },
-    { id: "kanazawa", name: "金澤・雨聲", coords: [36.5621, 136.6627], audio: "audio/kanazawa.mp3", image: "images/kanazawa.jpg", desc: "2026.3.3。北陸地區冬日常見的雨，落在鈴木大拙舘上的滴答聲。" },
-    { id: "uji", name: "宇治・宇治川", coords: [34.8893, 135.8077], audio: "audio/uji.mp3", image: "images/uji.jpg", desc: "2026.1.17。宇治橋下湍急的川流聲，伴隨著兩岸茶香。" },
-    { id: "inapark", name: "長野・伊那公園", coords: [35.8361, 137.9711], audio: "audio/inapark.mp3", image: "images/inapark.jpg", desc: "2026.2.27。信州高地的清晨，公園內高大樹木間的鳥鳴，空氣帶著涼意。" },
-    { id: "inahigh", name: "長野・伊那北高中", coords: [35.8505, 137.9614], audio: "audio/inahigh.mp3", image: "images/inahigh.jpg", desc: "2026.2.27。校園放學後的寧靜與南阿爾卑斯山的風。" },
-    { id: "chofu", name: "調布・花火大會", coords: [35.6385, 139.5286], audio: "audio/chofu.mp3", image: "images/chofu.jpg", desc: "2025.09.20。多摩川岸邊的夏末秋初，巨大的花火在夜空中綻放，震撼的爆炸聲劃破靜謐。" },
-    { id: "hitotsubashi", name: "國立・一橋祭", coords: [35.6946, 139.4442], audio: "audio/hitotsubashi.mp3", image: "images/hitotsubashi.jpg", desc: "2025.11.22。深秋的校園祭典，人們圍在一起歡快跳舞，充滿溫度的歡笑與節奏。" }
+    { id: "nara", name: "奈良・唐招提寺", coords: [34.6761, 135.7844], audio: "audio/nara.mp3", image: "images/nara.webp", desc: "2026.01.16。冬日午後的寺院，鳥鳴聲在木造建築間迴盪，空氣中彷彿能聽見寧靜。" },
+    { id: "fushimi", name: "京都・伏見稻荷", coords: [34.9671, 135.7727], audio: "audio/fushimi.mp3", image: "images/fushimi.webp", desc: "2026.1.12。千本鳥居旁的流水聲，午後的泉水帶著苔蘚的濕氣與山林的幽靜。" },
+    { id: "arashiyama", name: "京都・嵐山", coords: [35.0094, 135.6667], audio: "audio/arashiyama.mp3", image: "images/arashiyama.webp", desc: "2026.1.14。渡月橋邊的風聲與桂川細浪，竹林深處偶爾傳來的葉片摩擦聲。" },
+    { id: "takamatsu", name: "高松・高松港", coords: [34.3503, 134.0465], audio: "audio/takamatsu.mp3", image: "images/takamatsu.webp", desc: "2026.3.11。港口的平靜海風，夾雜著遠處微弱的船笛聲。" },
+    { id: "kanazawa", name: "金澤・雨聲", coords: [36.5621, 136.6627], audio: "audio/kanazawa.mp3", image: "images/kanazawa.webp", desc: "2026.3.3。北陸地區冬日常見的雨，落在鈴木大拙舘上的滴答聲。" },
+    { id: "uji", name: "宇治・宇治川", coords: [34.8893, 135.8077], audio: "audio/uji.mp3", image: "images/uji.webp", desc: "2026.1.17。宇治橋下湍急的川流聲，伴隨著兩岸茶香。" },
+    { id: "inapark", name: "長野・伊那公園", coords: [35.8361, 137.9711], audio: "audio/inapark.mp3", image: "images/inapark.webp", desc: "2026.2.27。信州高地的清晨，公園內高大樹木間的鳥鳴，空氣帶著涼意。" },
+    { id: "inahigh", name: "長野・伊那北高中", coords: [35.8505, 137.9614], audio: "audio/inahigh.mp3", image: "images/inahigh.webp", desc: "2026.2.27。校園放學後的寧靜與南阿爾卑斯山的風。" },
+    { id: "chofu", name: "調布・花火大會", coords: [35.6385, 139.5286], audio: "audio/chofu.mp3", image: "images/chofu.webp", desc: "2025.09.20。多摩川岸邊的夏末秋初，巨大的花火在夜空中綻放，震撼的爆炸聲劃破靜謐。" },
+    { id: "hitotsubashi", name: "國立・一橋祭", coords: [35.6946, 139.4442], audio: "audio/hitotsubashi.mp3", image: "images/hitotsubashi.webp", desc: "2025.11.22。深秋的校園祭典，人們圍在一起歡快跳舞，充滿溫度的歡笑與節奏。" }
 ];
 
 let currentLocId = null;
