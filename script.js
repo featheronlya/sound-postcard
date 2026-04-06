@@ -30,11 +30,11 @@ const locations = [
     },
     {
         id: "takamatsu",
-        name: "高松・瀨戶內海",
+        name: "高松・高松港",
         coords: [34.3503, 134.0465],
         audio: "audio/takamatsu.mp3",
         image: "images/takamatsu.jpg",
-        desc: "2026.3.11。瀨戶內海的平靜海風，夾雜著遠處微弱的船笛聲。"
+        desc: "2026.3.11。港口的平靜海風，夾雜著遠處微弱的船笛聲。"
     },
     {
         id: "kanazawa",
@@ -58,7 +58,7 @@ const locations = [
         coords: [35.8361, 137.9711],
         audio: "audio/inapark.mp3",
         image: "images/inapark.jpg",
-        desc: "2026.4.2。信州高地的清晨，公園內高大松樹間的鳥鳴，空氣帶著涼意。"
+        desc: "2026.2.27。信州高地的清晨，公園內高大樹木間的鳥鳴，空氣帶著涼意。"
     },
     {
         id: "inahigh",
@@ -66,7 +66,7 @@ const locations = [
         coords: [35.8505, 137.9614],
         audio: "audio/inahigh.mp3",
         image: "images/inahigh.jpg",
-        desc: "2026.4.3。校園放學後的寧靜，遠處運動場的呼喊與南阿爾卑斯山的風。"
+        desc: "2026.2.27。校園放學後的寧靜與南阿爾卑斯山的風。"
     }
 ];
 
