@@ -1,5 +1,5 @@
 /**
- * 聲音郵局 (Sound Postcard) - 性能與動效優化版
+ * 聲音郵局 (Sound Postcard) - 記錄完整版
  */
 
 const locations = [
@@ -10,31 +10,33 @@ const locations = [
     { id: "kanazawa", name: "金澤・雨聲", coords: [36.5621, 136.6627], audio: "audio/kanazawa.mp3", image: "images/kanazawa.jpg", desc: "2026.3.3。北陸地區冬日常見的雨，落在鈴木大拙舘上的滴答聲。" },
     { id: "uji", name: "宇治・宇治川", coords: [34.8893, 135.8077], audio: "audio/uji.mp3", image: "images/uji.jpg", desc: "2026.1.17。宇治橋下湍急的川流聲，伴隨著兩岸茶香。" },
     { id: "inapark", name: "長野・伊那公園", coords: [35.8361, 137.9711], audio: "audio/inapark.mp3", image: "images/inapark.jpg", desc: "2026.2.27。信州高地的清晨，公園內高大樹木間的鳥鳴，空氣帶著涼意。" },
-    { id: "inahigh", name: "長野・伊那北高中", coords: [35.8505, 137.9614], audio: "audio/inahigh.mp3", image: "images/inahigh.jpg", desc: "2026.2.26。校園放學後的寧靜與南阿爾卑斯山的風。" }
+    { id: "inahigh", name: "長野・伊那北高中", coords: [35.8505, 137.9614], audio: "audio/inahigh.mp3", image: "images/inahigh.jpg", desc: "2026.2.27。校園放學後的寧靜與南阿爾卑斯山的風。" },
+    { id: "chofu", name: "調布・花火大會", coords: [35.6385, 139.5286], audio: "audio/chofu.mp3", image: "images/chofu.jpg", desc: "2025.09.20。多摩川岸邊的夏末秋初，巨大的花火在夜空中綻放。" },
+    { id: "hitotsubashi", name: "國立・一橋祭", coords: [35.6946, 139.4442], audio: "audio/hitotsubashi.mp3", image: "images/hitotsubashi.jpg", desc: "2025.11.22。深秋的校園祭典，人們圍在一起歡快跳舞，充滿溫度的歡笑與節奏。" }
 ];
 
 let currentLocId = null;
 const isMobile = window.innerWidth < 768;
 
-// --- 引導頁控制 ---
+// --- 引導頁 ---
 const introEl = document.getElementById('intro');
 introEl.addEventListener('click', () => {
     introEl.classList.add('fade-out');
     setTimeout(() => { introEl.style.display = 'none'; }, 1800);
 });
 
-// --- 地圖初始化 ---
+// --- 地圖 ---
 const map = L.map('map', {
     zoomControl: false,
-    maxBounds: [[20, 115], [50, 155]],
+    maxBounds: [[20, 110], [50, 160]],
     minZoom: 4
-}).setView([37.5, 137.5], isMobile ? 5 : 6);
+}).setView([36.5, 138.5], isMobile ? 5 : 6);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© CARTO'
 }).addTo(map);
 
-// --- 音頻引擎：優化加載速度 ---
+// --- 音頻與脈衝分析 ---
 let audioCtx, gainNode, analyser, currentSource;
 
 function initAudio() {
@@ -50,8 +52,6 @@ function initAudio() {
 
 async function playSound(url) {
     initAudio();
-    
-    // 立即啟動舊聲音淡出
     if (gainNode) {
         gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
@@ -60,7 +60,6 @@ async function playSound(url) {
     try {
         const res = await fetch(url);
         const buffer = await audioCtx.decodeAudioData(await res.arrayBuffer());
-
         if (currentSource) { try { currentSource.stop(); } catch(e) {} }
 
         currentSource = audioCtx.createBufferSource();
@@ -68,30 +67,35 @@ async function playSound(url) {
         currentSource.loop = true;
         currentSource.connect(gainNode);
 
-        // 無縫切換並淡入
         gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
         gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(1, audioCtx.currentTime + 2.5);
         currentSource.start(0);
-    } catch (e) { console.error('Audio error:', e); }
+    } catch (e) { console.error('Audio load error:', e); }
 }
 
-// --- 脈衝視覺 ---
 function startPulseLogic() {
     const dataArr = new Uint8Array(analyser.frequencyBinCount);
     const ring = document.getElementById('pulse-ring');
     function draw() {
         analyser.getByteFrequencyData(dataArr);
-        const avg = dataArr.reduce((a, b) => a + b, 0) / dataArr.length;
-        const scale = 1 + (avg / 255) * 0.7;
+        let sum = 0;
+        for(let i = 0; i < dataArr.length; i++) { sum += dataArr[i]; }
+        const avg = sum / dataArr.length;
+
+        // 優化：放大靈敏度，讓圓點跳動更明顯
+        const sensitivity = 1.3; 
+        const scale = 1 + (avg / 255) * sensitivity;
+        const glow = (avg / 255) * 35; 
+        
         ring.style.transform = `scale(${scale.toFixed(3)})`;
-        ring.style.boxShadow = `0 0 ${Math.round(avg/15)}px rgba(255,255,255,0.6)`;
+        ring.style.boxShadow = `0 0 ${10 + glow}px rgba(255,255,255,${0.4 + (avg/200)})`;
         requestAnimationFrame(draw);
     }
     draw();
 }
 
-// --- 標記與交互 ---
+// --- 交互邏輯 ---
 const customIcon = L.divIcon({ className: 'glow-point', iconSize: [8, 8], iconAnchor: [4, 4] });
 
 locations.forEach(loc => {
@@ -104,9 +108,9 @@ function enterImmersive(loc) {
     const infoText = document.getElementById('info-text');
     const stamp = document.getElementById('stamp');
 
-    // 強制重置郵戳動畫
+    // 重置動效
     stamp.classList.remove('stamp-effect');
-    void stamp.offsetWidth; // 關鍵：觸發 Reflow 確保動畫重啟
+    void stamp.offsetWidth; 
 
     bgImg.style.backgroundImage = `url('${loc.image}')`;
     bgImg.style.backgroundSize = window.innerWidth > window.innerHeight ? 'contain' : 'cover';
@@ -117,25 +121,23 @@ function enterImmersive(loc) {
     document.getElementById('back-btn').style.display = 'block';
     infoText.style.opacity = '0';
 
-    // 填充內容
     document.getElementById('loc-name').innerText = loc.name;
     document.getElementById('loc-desc').innerText = loc.desc;
     document.getElementById('stamp-loc').innerText = loc.name.split('・')[0];
     document.getElementById('stamp-coord').innerText = `${loc.coords[0]}° N, ${loc.coords[1]}° E`;
 
-    // 啟動視覺序列
+    // 優化：圖片幾乎即時出現 (20ms 延遲)
     requestAnimationFrame(() => {
         setTimeout(() => {
-            bgImg.style.opacity = '0.72';
+            bgImg.style.opacity = '0.75';
             bgImg.classList.add('zooming');
-        }, 50);
+        }, 20);
     });
 
-    // 蓋章效果延遲
-    setTimeout(() => { stamp.classList.add('stamp-effect'); }, 600);
-
-    // 文字延遲
-    setTimeout(() => { infoText.style.opacity = '1'; }, 2000);
+    // 郵戳稍微提早 (0.4s)
+    setTimeout(() => { stamp.classList.add('stamp-effect'); }, 400);
+    // 文字加速 (1.2s)
+    setTimeout(() => { infoText.style.opacity = '1'; }, 1200);
 
     document.getElementById('pulse-wrap').style.opacity = '1';
     playSound(loc.audio);
