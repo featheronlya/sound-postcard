@@ -11,7 +11,7 @@ const locations = [
         name: "Kyoto・伏見稻荷・流水",
         coords: [34.9671, 135.7727],
         audio: "audio/fushimi.mp3",
-        image: "images/kyoto 1.16.jpg",
+        image: "images/kyoto.jpg",
         desc: "record on 2026.01.12 "
     },
     
@@ -19,8 +19,8 @@ const locations = [
     {
     name: "Nara・唐招提寺・bird",
     coords: [34.6761, 135.7844],
-    audio: "audio/nara 1.12.mp3", // 確保文件名對應
-    image: "images/nara 112.jpg",
+    audio: "audio/nara.mp3", // 確保文件名對應
+    image: "images/nara.jpg",
     desc: "record on 2026.01.16 "
 }
 
