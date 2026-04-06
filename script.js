@@ -1,16 +1,16 @@
 /**
- * 聲音郵局 (Sound Postcard) - 完整邏輯
- * 包含：Leaflet 地圖初始化、Web Audio API 處理、沉浸式切換
+ * 聲音郵局 (Sound Postcard) - 穩定版
+ * 優化：解決圖片不顯示問題、強化淡入淡出效果
  */
 
-// 1. 數據庫：請在此處增加或修改你的地點
+// 1. 數據庫
 const locations = [
     {
         id: "nara",
         name: "奈良・唐招提寺",
         coords: [34.6761, 135.7844],
-        audio: "audio/nara.mp3",      // 確保 GitHub 上有此文件
-        image: "images/nara.jpg",    // 確保 GitHub 上有此文件
+        audio: "audio/nara.mp3",
+        image: "images/nara.jpg",
         desc: "2026.01.16 記錄。冬日午後的寺院，鳥鳴聲在古老的木造建築間迴盪，空氣中彷彿能聽見寧靜。"
     },
     {
@@ -47,19 +47,18 @@ const locations = [
     }
 ];
 
-// 2. 初始化地圖 (設置在日本中心，並限制縮放與邊界)
+// 2. 初始化地圖
 const map = L.map('map', {
     zoomControl: false, 
     maxBounds: [[24, 122], [46, 154]], 
     minZoom: 5
 }).setView([35.2, 136.0], 6);
 
-// 使用 CartoDB 的極簡深色地圖瓦片
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap, © CARTO'
+    attribution: '© CARTO'
 }).addTo(map);
 
-// 3. Web Audio API 設定 (實現高品質淡入淡出)
+// 3. Web Audio API 設定
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx;
 let currentBufferSource;
@@ -75,118 +74,88 @@ function initAudio() {
 
 async function playSound(url) {
     initAudio();
-    
-    // 如果正在播放，先淡出
-    if (gainNode) {
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-    }
+    if (gainNode) gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
 
     try {
         const response = await fetch(url);
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
         
-        if (currentBufferSource) {
-            currentBufferSource.stop();
-        }
+        if (currentBufferSource) currentBufferSource.stop();
         
         currentBufferSource = audioCtx.createBufferSource();
         currentBufferSource.buffer = audioBuffer;
         currentBufferSource.loop = true;
         currentBufferSource.connect(gainNode);
         
-        // 開始播放並淡入
         gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(1, audioCtx.currentTime + 2);
         currentBufferSource.start();
     } catch (err) {
-        console.error("音頻加載失敗，請檢查路徑或 CORS 設定:", err);
+        console.error("音訊加載失敗:", url, err);
     }
 }
 
-// 4. 自定義地圖標記 (閃爍的小圓點)
-const customIcon = L.divIcon({ 
-    className: 'glow-point', 
-    iconSize: [12, 12],
-    iconAnchor: [6, 6]
-});
+// 4. 地圖標記
+const customIcon = L.divIcon({ className: 'glow-point', iconSize: [12, 12], iconAnchor: [6, 6] });
 
-// 5. 將地點加入地圖
 locations.forEach(loc => {
-    const marker = L.marker(loc.coords, { icon: customIcon }).addTo(map);
-    
-    // 點擊事件
-    marker.on('click', () => {
-        enterImmersive(loc);
-    });
+    L.marker(loc.coords, { icon: customIcon }).addTo(map).on('click', () => enterImmersive(loc));
 });
 
-// 6. 進入沉浸式模式 (顯示圖片與播放聲音)
+// 5. 進入沉浸模式 (核心修正)
 function enterImmersive(loc) {
     const overlay = document.getElementById('image-overlay');
     const bgImg = document.getElementById('bg-image');
     const backBtn = document.getElementById('back-btn');
     const stamp = document.getElementById('stamp');
 
-    // 顯示容器
+    // 1. 先更換背景圖路徑
+    bgImg.style.backgroundImage = `url('${loc.image}')`;
+    
+    // 2. 顯示容器
     overlay.style.display = 'block';
     backBtn.style.display = 'block';
-    
-    // 設定背景圖與動畫
-    bgImg.style.backgroundImage = `url('${loc.image}')`;
-    bgImg.classList.remove('zooming');
-    setTimeout(() => bgImg.classList.add('zooming'), 100); 
 
-    // 更新文字內容
+    // 3. 強制觸發圖片顯示與動畫 (使用 setTimeout 確保渲染順序)
+    setTimeout(() => {
+        bgImg.style.opacity = "0.6"; // 直接給透明度
+        bgImg.classList.add('zooming');
+    }, 50);
+
+    // 4. 更新文字
     document.getElementById('loc-name').innerText = loc.name;
     document.getElementById('loc-desc').innerText = loc.desc;
     
-    // 更新並顯示郵戳
+    // 5. 更新郵戳
     document.getElementById('stamp-loc').innerText = loc.name.split('・')[0];
     document.getElementById('stamp-coord').innerText = `${loc.coords[0]}° N, ${loc.coords[1]}° E`;
     stamp.classList.add('active');
     
-    // 播放音頻
+    // 6. 播放聲音
     playSound(loc.audio);
 }
 
-// 7. 返回地圖邏輯
+// 6. 返回地圖
 document.getElementById('back-btn').addEventListener('click', () => {
-    const overlay = document.getElementById('image-overlay');
-    const backBtn = document.getElementById('back-btn');
-    const stamp = document.getElementById('stamp');
+    const bgImg = document.getElementById('bg-image');
+    document.getElementById('image-overlay').style.display = 'none';
+    document.getElementById('back-btn').style.display = 'none';
+    document.getElementById('stamp').classList.remove('active');
+    
+    // 重置圖片狀態
+    bgImg.style.opacity = "0";
+    bgImg.classList.remove('zooming');
 
-    overlay.style.display = 'none';
-    backBtn.style.display = 'none';
-    stamp.classList.remove('active');
-
-    // 聲音淡出並停止
     if (gainNode) {
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-        setTimeout(() => {
-            if (currentBufferSource) currentBufferSource.stop();
-        }, 1000);
+        setTimeout(() => { if (currentBufferSource) currentBufferSource.stop(); }, 1000);
     }
 });
 
-// 8. 隨機按鈕 (Surprise Me)
+// 7. 隨機按鈕
 document.getElementById('surprise-btn').addEventListener('click', () => {
     const randomLoc = locations[Math.floor(Math.random() * locations.length)];
-    // 地圖平滑飛行至目標
-    map.flyTo(randomLoc.coords, 10, {
-        animate: true,
-        duration: 2
-    });
-    
-    // 飛行結束後進入沉浸模式
-    setTimeout(() => {
-        enterImmersive(randomLoc);
-    }, 2500);
+    map.flyTo(randomLoc.coords, 10, { animate: true, duration: 2 });
+    setTimeout(() => enterImmersive(randomLoc), 2500);
 });
-
-// 9. 自動偵測夜間模式 (可選)
-const hour = new Date().getHours();
-if (hour >= 18 || hour <= 6) {
-    console.log("夜間模式已啟動");
-    // 這裡可以額外微調 UI 顏色
-}
