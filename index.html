@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>聲音郵局 | Sound Postcard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'serif'; }
+        #map { height: 100vh; width: 100%; background: #1a1a1a; }
+        
+        /* 聲音郵票卡片樣式 */
+        .postcard {
+            position: absolute; bottom: 30px; left: 30px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.9); padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); border-radius: 2px;
+            display: none; width: 250px;
+        }
+        .postcard img { width: 100%; filter: sepia(0.3); }
+        .stamp { border: 2px dashed #888; padding: 5px; display: inline-block; margin-top: 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="postcard" class="postcard">
+    <img id="pc-image" src="" alt="現場畫面">
+    <h3 id="pc-title">地點</h3>
+    <p id="pc-desc">聲音描述</p>
+    <div class="stamp" id="pc-coord">坐標</div>
+    <audio id="audio-player" controls style="width: 100%; margin-top: 10px;"></audio>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
