@@ -62,8 +62,8 @@ const map = L.map('map', {
 
 // --- 樣式更換：你可以更換下面的網址來切換地圖風格 ---
 // 這裡換成了更乾淨的深色樣式 (Dark Matter)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap, © CARTO'
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© CARTO'
 }).addTo(map);
 
 // Web Audio API
