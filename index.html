@@ -4,67 +4,202 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>聲音郵局 | Sound Postcard</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
-        :root { --accent-color: #e0e0e0; }
-        body, html { margin: 0; padding: 0; height: 100%; background: #000; color: white; overflow: hidden; font-family: "PingFang TC", "Microsoft JhengHei", serif; }
-        
-        #map { height: 100vh; width: 100%; transition: opacity 1s; }
-        
-        /* 沉浸式影片層 */
-        #video-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; display: none; z-index: 2000;
+        :root {
+            --accent-color: #ffffff;
+            --bg-dark: #0a0a0a;
         }
-        video { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
 
-        /* 返回按鈕 & UI */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: var(--bg-dark);
+            color: white;
+            overflow: hidden;
+            font-family: "Optima", "PingFang TC", "Microsoft JhengHei", serif;
+        }
+
+        /* 地圖容器 */
+        #map {
+            height: 100vh;
+            width: 100%;
+            background: #000;
+        }
+
+        /* 沉浸式圖片層 */
+        #image-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none; /* 初始隱藏 */
+            z-index: 2000;
+            overflow: hidden;
+        }
+
+        /* 背景圖片與縮放動畫 */
+        #bg-image {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out, transform 12s linear;
+        }
+        
+        #bg-image.visible {
+            opacity: 0.6;
+        }
+
+        #bg-image.zooming {
+            transform: scale(1.15);
+        }
+
+        /* 文字描述區 */
+        #info-text {
+            position: absolute;
+            bottom: 120px;
+            left: 50px;
+            max-width: 350px;
+            z-index: 2100;
+            pointer-events: none;
+        }
+
+        #loc-name {
+            font-size: 2rem;
+            font-weight: 400;
+            margin-bottom: 15px;
+            letter-spacing: 4px;
+            border-left: 3px solid var(--accent-color);
+            padding-left: 15px;
+        }
+
+        #loc-desc {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 300;
+        }
+
+        /* 返回按鈕 */
         .back-btn {
-            position: absolute; top: 30px; left: 30px; z-index: 3000;
-            background: none; border: 1px solid white; color: white;
-            padding: 8px 20px; cursor: pointer; display: none;
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            z-index: 3000;
+            background: none;
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white;
+            padding: 10px 25px;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            cursor: pointer;
+            display: none;
+            transition: all 0.3s;
         }
 
-        /* 聲音郵戳動畫 */
+        .back-btn:hover {
+            background: white;
+            color: black;
+        }
+
+        /* 聲音郵戳 (Stamp) */
         #stamp {
-            position: absolute; bottom: 40px; right: 40px; z-index: 3000;
-            border: 2px solid var(--accent-color); padding: 15px;
-            font-family: monospace; text-transform: uppercase;
-            opacity: 0; transition: all 0.5s; pointer-events: none;
+            position: absolute;
+            bottom: 50px;
+            right: 50px;
+            z-index: 3000;
+            border: 2px solid rgba(255,255,255,0.4);
+            padding: 15px 20px;
+            font-family: monospace;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            opacity: 0;
+            transform: rotate(5deg) scale(1.5);
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
         }
-        #stamp.active { opacity: 1; transform: scale(1.1) rotate(-5deg); }
 
-        /* 自定義閃爍點標記 */
+        #stamp.active {
+            opacity: 0.8;
+            transform: rotate(-8deg) scale(1);
+        }
+
+        /* 地圖閃爍標記 */
         .glow-point {
-            width: 12px; height: 12px; background: #fff; border-radius: 50%;
-            box-shadow: 0 0 15px #fff; animation: blink 2s infinite;
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #fff, 0 0 30px #fff;
+            animation: pulse 2.5s infinite;
         }
-        @keyframes blink { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
 
-        /* 隨機按鈕 */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.5); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.4; }
+        }
+
+        /* UI 按鈕 (地圖介面) */
         #surprise-btn {
-            position: absolute; bottom: 30px; left: 30px; z-index: 1000;
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
-            color: white; padding: 10px 15px; cursor: pointer; backdrop-filter: blur(5px);
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            z-index: 1000;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 12px 20px;
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: 0.3s;
+        }
+
+        #surprise-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* 針對行動裝置的優化 */
+        @media (max-width: 768px) {
+            #info-text { left: 30px; bottom: 150px; right: 30px; }
+            #stamp { bottom: 40px; right: 30px; font-size: 0.6rem; }
+            .back-btn { top: 30px; left: 30px; }
         }
     </style>
 </head>
 <body>
 
     <div id="map"></div>
-    <div id="video-overlay">
-        <video id="bg-video" loop muted playsinline></video>
-        <div id="info-text" style="position:absolute; bottom:120px; left:40px; max-width:300px;">
-            <h2 id="loc-name"></h2>
-            <p id="loc-desc" style="font-size:0.9em; line-height:1.6; color:#ccc;"></p>
+
+    <div id="image-overlay">
+        <div id="bg-image"></div>
+        <div id="info-text">
+            <h2 id="loc-name">地點名稱</h2>
+            <p id="loc-desc">這是一段關於聲音與空間的描述...</p>
         </div>
     </div>
 
-    <button id="back-btn" class="back-btn">RETURN TO MAP</button>
+    <button id="back-btn" class="back-btn">BACK TO MAP</button>
     <button id="surprise-btn">SURPRISE ME</button>
-    <div id="stamp">COLLECTED AT: <span id="stamp-loc"></span><br><span id="stamp-coord"></span></div>
+    
+    <div id="stamp">
+        COLLECTED AT: <span id="stamp-loc">Unknown</span><br>
+        COORD: <span id="stamp-coord">0.0, 0.0</span><br>
+        VERIFIED RECORDING
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
+
 </body>
 </html>
