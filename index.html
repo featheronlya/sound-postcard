@@ -2,36 +2,69 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>聲音郵局 | Sound Postcard</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'serif'; }
-        #map { height: 100vh; width: 100%; background: #1a1a1a; }
+        :root { --accent-color: #e0e0e0; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #000; color: white; overflow: hidden; font-family: "PingFang TC", "Microsoft JhengHei", serif; }
         
-        /* 聲音郵票卡片樣式 */
-        .postcard {
-            position: absolute; bottom: 30px; left: 30px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.9); padding: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); border-radius: 2px;
-            display: none; width: 250px;
+        #map { height: 100vh; width: 100%; transition: opacity 1s; }
+        
+        /* 沉浸式影片層 */
+        #video-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; display: none; z-index: 2000;
         }
-        .postcard img { width: 100%; filter: sepia(0.3); }
-        .stamp { border: 2px dashed #888; padding: 5px; display: inline-block; margin-top: 10px; font-size: 12px; }
+        video { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+
+        /* 返回按鈕 & UI */
+        .back-btn {
+            position: absolute; top: 30px; left: 30px; z-index: 3000;
+            background: none; border: 1px solid white; color: white;
+            padding: 8px 20px; cursor: pointer; display: none;
+        }
+
+        /* 聲音郵戳動畫 */
+        #stamp {
+            position: absolute; bottom: 40px; right: 40px; z-index: 3000;
+            border: 2px solid var(--accent-color); padding: 15px;
+            font-family: monospace; text-transform: uppercase;
+            opacity: 0; transition: all 0.5s; pointer-events: none;
+        }
+        #stamp.active { opacity: 1; transform: scale(1.1) rotate(-5deg); }
+
+        /* 自定義閃爍點標記 */
+        .glow-point {
+            width: 12px; height: 12px; background: #fff; border-radius: 50%;
+            box-shadow: 0 0 15px #fff; animation: blink 2s infinite;
+        }
+        @keyframes blink { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+
+        /* 隨機按鈕 */
+        #surprise-btn {
+            position: absolute; bottom: 30px; left: 30px; z-index: 1000;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+            color: white; padding: 10px 15px; cursor: pointer; backdrop-filter: blur(5px);
+        }
     </style>
 </head>
 <body>
 
-<div id="map"></div>
+    <div id="map"></div>
+    <div id="video-overlay">
+        <video id="bg-video" loop muted playsinline></video>
+        <div id="info-text" style="position:absolute; bottom:120px; left:40px; max-width:300px;">
+            <h2 id="loc-name"></h2>
+            <p id="loc-desc" style="font-size:0.9em; line-height:1.6; color:#ccc;"></p>
+        </div>
+    </div>
 
-<div id="postcard" class="postcard">
-    <img id="pc-image" src="" alt="現場畫面">
-    <h3 id="pc-title">地點</h3>
-    <p id="pc-desc">聲音描述</p>
-    <div class="stamp" id="pc-coord">坐標</div>
-    <audio id="audio-player" controls style="width: 100%; margin-top: 10px;"></audio>
-</div>
+    <button id="back-btn" class="back-btn">RETURN TO MAP</button>
+    <button id="surprise-btn">SURPRISE ME</button>
+    <div id="stamp">COLLECTED AT: <span id="stamp-loc"></span><br><span id="stamp-coord"></span></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="script.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
