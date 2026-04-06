@@ -11,7 +11,7 @@
     <style>
         :root {
             --accent: #fff;
-            --glass: rgba(0, 0, 0, 0.3);
+            --glass: rgba(0, 0, 0, 0.25); /* 更透明的底色 */
         }
 
         body, html {
@@ -23,7 +23,6 @@
 
         #map { height: 100vh; width: 100%; filter: grayscale(0.2); }
 
-        /* 沉浸式展示層 */
         #image-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; display: none; z-index: 2000;
@@ -32,96 +31,90 @@
         #bg-image {
             width: 100%; height: 100%;
             background-repeat: no-repeat; background-position: center;
-            opacity: 0; transition: opacity 2s ease-in-out, transform 15s linear;
+            opacity: 0; transition: opacity 2.5s ease-in-out, transform 20s linear;
         }
-        #bg-image.zooming { transform: scale(1.1); }
+        #bg-image.zooming { transform: scale(1.12); }
 
-        /* 磨砂玻璃文字區 */
+        /* 優化後的磨砂玻璃區：更窄、更靠邊 */
         #info-text {
-            position: absolute; bottom: 10%; left: 50px;
-            max-width: 400px; z-index: 2100;
-            padding: 30px;
+            position: absolute; bottom: 40px; left: 40px;
+            max-width: 320px; z-index: 2100;
+            padding: 20px 25px;
             background: var(--glass);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border-left: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-left: 2px solid rgba(255,255,255,0.4);
             pointer-events: none;
+            opacity: 0; /* 初始隱藏，由 JS 控制延遲顯示 */
+            transition: opacity 1.5s ease;
         }
 
         #loc-name {
-            font-size: 1.8rem; font-weight: 500; margin: 0 0 15px 0;
-            letter-spacing: 3px;
+            font-size: 1.5rem; font-weight: 500; margin: 0 0 10px 0;
+            letter-spacing: 2px;
         }
 
         #loc-desc {
-            font-size: 0.9rem; line-height: 2; color: rgba(255,255,255,0.7);
+            font-size: 0.85rem; line-height: 1.8; color: rgba(255,255,255,0.8);
             font-weight: 300; margin: 0;
         }
 
-        /* 藝術感按鈕 */
         .ui-btn {
             position: absolute; z-index: 3000;
             background: none; border: 1px solid rgba(255,255,255,0.3);
-            color: #fff; padding: 10px 20px;
+            color: #fff; padding: 8px 18px;
             font-family: 'Cormorant Garamond', serif;
             letter-spacing: 2px; cursor: pointer; transition: 0.4s;
+            font-size: 0.8rem;
         }
         .ui-btn:hover { background: #fff; color: #000; }
 
-        #back-btn { top: 40px; left: 40px; display: none; }
-        #surprise-btn { bottom: 40px; left: 40px; }
+        #back-btn { top: 30px; left: 30px; display: none; }
+        #surprise-btn { bottom: 30px; left: 30px; }
 
-        /* 聲音郵戳 */
+        /* 郵戳：移除了節氣，保持簡潔 */
         #stamp {
-            position: absolute; bottom: 60px; right: 60px; z-index: 3000;
-            border: 1px solid rgba(255,255,255,0.4); padding: 20px;
+            position: absolute; bottom: 40px; right: 40px; z-index: 3000;
+            border: 1px solid rgba(255,255,255,0.3); padding: 15px;
             font-family: 'Cormorant Garamond', serif; text-transform: uppercase;
-            font-size: 0.7rem; line-height: 1.6; letter-spacing: 1px;
-            opacity: 0; transform: rotate(10deg) scale(1.2);
-            transition: 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+            font-size: 0.65rem; line-height: 1.5; letter-spacing: 1px;
+            opacity: 0; transform: rotate(10deg);
+            transition: 1s ease-out;
         }
-        #stamp.active { opacity: 0.7; transform: rotate(-5deg) scale(1); }
+        #stamp.active { opacity: 0.6; transform: rotate(-5deg); }
 
-        /* 自定義星光標記 */
         .glow-point {
             width: 8px; height: 8px; background: #fff; border-radius: 50%;
-            box-shadow: 0 0 15px #fff;
+            box-shadow: 0 0 12px #fff;
             animation: breathe 4s infinite ease-in-out;
         }
         @keyframes breathe {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.4); }
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 0.9; transform: scale(1.3); }
         }
 
         @media (max-width: 768px) {
-            #info-text { left: 20px; right: 20px; bottom: 120px; padding: 20px; }
-            #stamp { bottom: 40px; right: 20px; scale: 0.8; }
+            #info-text { left: 20px; right: 20px; bottom: 100px; max-width: none; }
+            #stamp { display: none; } /* 手機端隱藏郵戳以節省空間 */
         }
     </style>
 </head>
 <body>
-
     <div id="map"></div>
-
     <div id="image-overlay">
         <div id="bg-image"></div>
         <div id="info-text">
             <h2 id="loc-name"></h2>
             <p id="loc-desc"></p>
-            <p id="tech-info" style="font-size: 0.6rem; margin-top: 20px; opacity: 0.4; font-family: monospace;"></p>
         </div>
     </div>
-
-    <button id="back-btn" class="ui-btn">LEAVE THE SCENE</button>
+    <button id="back-btn" class="ui-btn">BACK</button>
     <button id="surprise-btn" class="ui-btn">SURPRISE ME</button>
-    
     <div id="stamp">
         COLLECTED AT: <span id="stamp-loc"></span><br>
         <span id="stamp-coord"></span><br>
-        SEASONAL: <span id="stamp-term"></span><br>
-        VERIFIED RECORDING
+        ORIGINAL RECORDING
     </div>
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
 </body>
