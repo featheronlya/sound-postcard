@@ -1,5 +1,5 @@
 /**
- * 聲音郵局 - 敘事節奏優化版
+ * 聲音郵局 - 修復圖片卡頓與手機音訊
  */
 
 const locations = [
@@ -18,55 +18,56 @@ const locations = [
 let currentLocId = null;
 const isMobile = window.innerWidth < 768;
 
-// --- 引導頁控制 ---
+// 音訊全局變量
+let audioCtx, gainNode, analyser, currentSource;
+
+// --- 關鍵：在 Intro 點擊時初始化 AudioContext (手機端必須) ---
 const introEl = document.getElementById('intro');
 introEl.addEventListener('click', () => {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // 建立一個空的 silent buffer 並播放，來解鎖手機音訊
+        const buffer = audioCtx.createBuffer(1, 1, 22050);
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioCtx.destination);
+        source.start(0);
+        
+        gainNode = audioCtx.createGain();
+        analyser = audioCtx.createAnalyser();
+        gainNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        startPulse();
+    }
     introEl.classList.add('fade-out');
     setTimeout(() => { introEl.style.display = 'none'; }, 1800);
 });
 
 // --- 地圖初始化 ---
-const map = L.map('map', {
-    zoomControl: false,
-    attributionControl: false,
-    maxBounds: [[20, 110], [50, 160]],
-    minZoom: 4
-}).setView([36.5, 138.5], isMobile ? 5 : 6);
-
+const map = L.map('map', { zoomControl: false, attributionControl: false, minZoom: 4 }).setView([36.5, 138.5], isMobile ? 5 : 6);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// --- 音頻與脈衝引擎 ---
-let audioCtx, gainNode, analyser, currentSource;
-
-function initAudio() {
-    if (audioCtx) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    gainNode = audioCtx.createGain();
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-    gainNode.connect(analyser);
-    analyser.connect(audioCtx.destination);
-    startPulse();
-}
-
+// --- 音頻與脈衝 ---
 async function playSound(url) {
-    initAudio();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    
     if (gainNode) {
-        gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+        gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
     }
+
     try {
         const res = await fetch(url);
         const buffer = await audioCtx.decodeAudioData(await res.arrayBuffer());
-        if (currentSource) try { currentSource.stop(); } catch(e){}
+        if (currentSource) currentSource.stop();
         currentSource = audioCtx.createBufferSource();
         currentSource.buffer = buffer;
         currentSource.loop = true;
         currentSource.connect(gainNode);
-        gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(1, audioCtx.currentTime + 2);
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 2);
         currentSource.start(0);
-    } catch(e){}
+    } catch(e) { console.error("Audio error:", e); }
 }
 
 function startPulse() {
@@ -75,24 +76,24 @@ function startPulse() {
     function draw() {
         analyser.getByteFrequencyData(dataArr);
         const avg = dataArr.reduce((a, b) => a + b, 0) / dataArr.length;
-        // 增強感應靈敏度
-        const scale = 1 + (avg / 255) * 1.8;
-        const glow = (avg / 255) * 30;
-        ring.style.transform = `scale(${scale.toFixed(2)})`;
-        ring.style.boxShadow = `0 0 ${10 + glow}px rgba(255,255,255,${0.3 + (avg/200)})`;
+        ring.style.transform = `scale(${1 + (avg / 255) * 1.5})`;
         requestAnimationFrame(draw);
     }
     draw();
 }
 
-// --- 點擊交互與沉浸模式時序 ---
-const customIcon = L.divIcon({ className: 'glow-point', iconSize: [12, 12], iconAnchor: [6, 6] });
+// --- 沉浸模式時序 (包含圖片預加載) ---
+const customIcon = L.divIcon({ className: 'glow-point', iconSize: [15, 15], iconAnchor: [7, 7] });
 
 locations.forEach(loc => {
     L.marker(loc.coords, { icon: customIcon }).addTo(map).on('click', (e) => {
-        // 先移動地圖中心
         map.flyTo(e.latlng, isMobile ? 8 : 9, { duration: 1.2 });
-        setTimeout(() => enterImmersive(loc), 1300);
+        // 開始預加載圖片
+        const img = new Image();
+        img.src = loc.image;
+        img.onload = () => {
+            setTimeout(() => enterImmersive(loc), 1300);
+        };
     });
 });
 
@@ -102,16 +103,15 @@ function enterImmersive(loc) {
     const infoText = document.getElementById('info-text');
     const stamp = document.getElementById('stamp');
 
-    // 重置動態元素狀態
+    // 重置
     stamp.classList.remove('stamp-effect');
     void stamp.offsetWidth; 
     infoText.style.opacity = '0';
     bgImg.style.opacity = '0';
     bgImg.classList.remove('zooming');
 
-    // 準備內容
+    // 設置內容
     bgImg.style.backgroundImage = `url('${loc.image}')`;
-    bgImg.style.backgroundSize = isMobile ? 'cover' : 'contain';
     document.getElementById('image-overlay').style.display = 'block';
     document.getElementById('back-btn').style.display = 'block';
     document.getElementById('loc-name').innerText = loc.name;
@@ -119,38 +119,23 @@ function enterImmersive(loc) {
     document.getElementById('stamp-loc').innerText = loc.name.split('・')[0];
     document.getElementById('stamp-coord').innerText = `${loc.coords[0]}° N, ${loc.coords[1]}° E`;
 
-    // --- 關鍵時序控制 ---
+    // 時序
+    setTimeout(() => {
+        bgImg.style.opacity = '1'; // 現在圖片已在快取，會直接淡入
+        bgImg.classList.add('zooming');
+        document.getElementById('pulse-wrap').style.opacity = '1';
+        playSound(loc.audio);
+    }, 100);
 
-    // 1. 圖片與聲音：立即開始 (50ms)
-    requestAnimationFrame(() => {
-        setTimeout(() => {
-            bgImg.style.opacity = '0.85';
-            bgImg.classList.add('zooming');
-            document.getElementById('pulse-wrap').style.opacity = '1';
-        }, 50);
-    });
-    playSound(loc.audio);
-
-    // 2. 文字描述：隨後浮現 (1.8s)
-    setTimeout(() => { 
-        infoText.style.opacity = '1'; 
-    }, 1800); 
-
-    // 3. 郵戳：最後蓋下 (2.6s)
-    setTimeout(() => { 
-        stamp.classList.add('stamp-effect'); 
-    }, 2600); 
+    setTimeout(() => { infoText.style.opacity = '1'; }, 1800); 
+    setTimeout(() => { stamp.classList.add('stamp-effect'); }, 2600); 
 }
 
-// --- UI 控制 ---
 document.getElementById('back-btn').addEventListener('click', () => {
     document.getElementById('image-overlay').style.display = 'none';
     document.getElementById('back-btn').style.display = 'none';
     document.getElementById('pulse-wrap').style.opacity = '0';
-    if(gainNode) {
-        gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
-    }
+    if(gainNode) gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
     currentLocId = null;
 });
 
@@ -158,9 +143,11 @@ document.getElementById('surprise-btn').addEventListener('click', () => {
     const pool = locations.filter(l => l.id !== currentLocId);
     const pick = pool[Math.floor(Math.random() * pool.length)];
     if(currentLocId) document.getElementById('back-btn').click();
+    map.flyTo(pick.coords, isMobile ? 8 : 9, { duration: 1.5 });
     
-    setTimeout(() => {
-        map.flyTo(pick.coords, isMobile ? 8 : 9, { duration: 2 });
-        setTimeout(() => enterImmersive(pick), 2200);
-    }, 400);
+    const img = new Image();
+    img.src = pick.image;
+    img.onload = () => {
+        setTimeout(() => enterImmersive(pick), 1600);
+    };
 });
