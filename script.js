@@ -1,5 +1,5 @@
 /**
- * 聲音郵局 - 加長蓋印動效版
+ * 聲音郵局 - 敘事節奏優化版
  */
 
 const locations = [
@@ -18,12 +18,14 @@ const locations = [
 let currentLocId = null;
 const isMobile = window.innerWidth < 768;
 
+// --- 引導頁控制 ---
 const introEl = document.getElementById('intro');
 introEl.addEventListener('click', () => {
     introEl.classList.add('fade-out');
-    setTimeout(() => { introEl.style.display = 'none'; }, 1500);
+    setTimeout(() => { introEl.style.display = 'none'; }, 1800);
 });
 
+// --- 地圖初始化 ---
 const map = L.map('map', {
     zoomControl: false,
     attributionControl: false,
@@ -33,6 +35,7 @@ const map = L.map('map', {
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+// --- 音頻與脈衝引擎 ---
 let audioCtx, gainNode, analyser, currentSource;
 
 function initAudio() {
@@ -67,24 +70,29 @@ async function playSound(url) {
 }
 
 function startPulse() {
-    const data = new Uint8Array(analyser.frequencyBinCount);
+    const dataArr = new Uint8Array(analyser.frequencyBinCount);
     const ring = document.getElementById('pulse-ring');
     function draw() {
-        analyser.getByteFrequencyData(data);
-        const avg = data.reduce((a,b)=>a+b,0)/data.length;
-        const s = 1 + (avg/255)*1.8; // 增加靈敏度
-        ring.style.transform = `scale(${s.toFixed(2)})`;
+        analyser.getByteFrequencyData(dataArr);
+        const avg = dataArr.reduce((a, b) => a + b, 0) / dataArr.length;
+        // 增強感應靈敏度
+        const scale = 1 + (avg / 255) * 1.8;
+        const glow = (avg / 255) * 30;
+        ring.style.transform = `scale(${scale.toFixed(2)})`;
+        ring.style.boxShadow = `0 0 ${10 + glow}px rgba(255,255,255,${0.3 + (avg/200)})`;
         requestAnimationFrame(draw);
     }
     draw();
 }
 
+// --- 點擊交互與沉浸模式時序 ---
 const customIcon = L.divIcon({ className: 'glow-point', iconSize: [12, 12], iconAnchor: [6, 6] });
 
 locations.forEach(loc => {
     L.marker(loc.coords, { icon: customIcon }).addTo(map).on('click', (e) => {
-        map.flyTo(e.latlng, isMobile ? 8 : 9, { duration: 1.5 });
-        setTimeout(() => enterImmersive(loc), 1600);
+        // 先移動地圖中心
+        map.flyTo(e.latlng, isMobile ? 8 : 9, { duration: 1.2 });
+        setTimeout(() => enterImmersive(loc), 1300);
     });
 });
 
@@ -94,49 +102,65 @@ function enterImmersive(loc) {
     const infoText = document.getElementById('info-text');
     const stamp = document.getElementById('stamp');
 
+    // 重置動態元素狀態
     stamp.classList.remove('stamp-effect');
-    void stamp.offsetWidth;
-
-    bgImg.style.backgroundImage = `url('${loc.image}')`;
-    bgImg.style.backgroundSize = isMobile ? 'cover' : 'contain';
+    void stamp.offsetWidth; 
+    infoText.style.opacity = '0';
     bgImg.style.opacity = '0';
     bgImg.classList.remove('zooming');
 
+    // 準備內容
+    bgImg.style.backgroundImage = `url('${loc.image}')`;
+    bgImg.style.backgroundSize = isMobile ? 'cover' : 'contain';
     document.getElementById('image-overlay').style.display = 'block';
     document.getElementById('back-btn').style.display = 'block';
-    infoText.style.opacity = '0';
-
     document.getElementById('loc-name').innerText = loc.name;
     document.getElementById('loc-desc').innerText = loc.desc;
     document.getElementById('stamp-loc').innerText = loc.name.split('・')[0];
     document.getElementById('stamp-coord').innerText = `${loc.coords[0]}° N, ${loc.coords[1]}° E`;
 
+    // --- 關鍵時序控制 ---
+
+    // 1. 圖片與聲音：立即開始 (50ms)
     requestAnimationFrame(() => {
         setTimeout(() => {
             bgImg.style.opacity = '0.85';
             bgImg.classList.add('zooming');
+            document.getElementById('pulse-wrap').style.opacity = '1';
         }, 50);
     });
-
-    // 延遲視覺出現順序：為了配合更長的郵戳動畫，我們稍微調整間隔
-    setTimeout(() => { stamp.classList.add('stamp-effect'); }, 600);
-    setTimeout(() => { infoText.style.opacity = '1'; }, 1800); 
-
-    document.getElementById('pulse-wrap').style.opacity = '1';
     playSound(loc.audio);
+
+    // 2. 文字描述：隨後浮現 (1.8s)
+    setTimeout(() => { 
+        infoText.style.opacity = '1'; 
+    }, 1800); 
+
+    // 3. 郵戳：最後蓋下 (2.6s)
+    setTimeout(() => { 
+        stamp.classList.add('stamp-effect'); 
+    }, 2600); 
 }
 
+// --- UI 控制 ---
 document.getElementById('back-btn').addEventListener('click', () => {
     document.getElementById('image-overlay').style.display = 'none';
     document.getElementById('back-btn').style.display = 'none';
     document.getElementById('pulse-wrap').style.opacity = '0';
-    if(gainNode) gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+    if(gainNode) {
+        gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+    }
     currentLocId = null;
 });
 
 document.getElementById('surprise-btn').addEventListener('click', () => {
     const pool = locations.filter(l => l.id !== currentLocId);
     const pick = pool[Math.floor(Math.random() * pool.length)];
-    map.flyTo(pick.coords, isMobile ? 8 : 9, { duration: 2 });
-    setTimeout(() => enterImmersive(pick), 2200);
+    if(currentLocId) document.getElementById('back-btn').click();
+    
+    setTimeout(() => {
+        map.flyTo(pick.coords, isMobile ? 8 : 9, { duration: 2 });
+        setTimeout(() => enterImmersive(pick), 2200);
+    }, 400);
 });
