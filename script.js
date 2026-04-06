@@ -8,20 +8,22 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 // 2. 定義你的聲音數據庫
 const locations = [
     {
-        name: "伏見稻荷・流水",
+        name: "Kyoto・伏見稻荷・流水",
         coords: [34.9671, 135.7727],
         audio: "audio/fushimi.mp3",
         image: "images/fushimi.jpg",
-        desc: "清晨泉水冒出的咕嘟聲，帶著苔蘚的濕氣。"
+        desc: "record on 2026.01.12 "
     },
+    
+
     {
-        name: "高松・海風",
-        coords: [34.3503, 134.0465],
-        audio: "audio/takamatsu.mp3",
-        image: "images/takamatsu.jpg",
-        desc: "瀨戶內海的平靜海風，夾雜著遠處的船笛。"
-    },
-    // ... 依此類推加入金澤、奈良、宇治
+    name: "Nara・唐招提寺・bird",
+    coords: [34.6761, 135.7844],
+    audio: "audio/nara_toshodaiji.mp3", // 確保文件名對應
+    image: "images/nara.jpg",
+    desc: "record on 2026.01.16 "
+}
+
 ];
 
 // 3. 將點位加入地圖
