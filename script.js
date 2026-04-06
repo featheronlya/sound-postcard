@@ -1,6 +1,6 @@
 /**
- * 聲音郵局 (Sound Postcard) - 交互優化版
- * 修復：隨機地點重複問題、豎版照片裁切問題
+ * 聲音郵局 (Sound Postcard) - 地圖優化版
+ * 修復：手機顯示完整日本、更換地圖樣式、隨機重複問題
  */
 
 const locations = [
@@ -10,7 +10,7 @@ const locations = [
         coords: [34.6761, 135.7844],
         audio: "audio/nara.mp3",
         image: "images/nara.jpg",
-        desc: "2026.01.16 記錄。冬日午後的寺院，鳥鳴聲在古老的木造建築間迴盪，空氣中彷彿能聽見寧靜。"
+        desc: "2026.01.16。冬日午後的寺院，鳥鳴聲在古老的木造建築間迴盪，空氣中彷彿能聽見寧靜。"
     },
     {
         id: "fushimi",
@@ -18,7 +18,7 @@ const locations = [
         coords: [34.9671, 135.7727],
         audio: "audio/fushimi.mp3",
         image: "images/fushimi.jpg",
-        desc: "千本鳥居旁的流水聲，清晨的泉水帶著苔蘚的濕氣與山林的幽靜。"
+        desc: "2026.1.12。千本鳥居旁的流水聲，午後的泉水帶著苔蘚的濕氣與山林的幽靜。"
     },
     {
         id: "takamatsu",
@@ -26,7 +26,7 @@ const locations = [
         coords: [34.3503, 134.0465],
         audio: "audio/takamatsu.mp3",
         image: "images/takamatsu.jpg",
-        desc: "瀨戶內海的平靜海風，夾雜著遠處微弱的船笛聲，是港口特有的節奏。"
+        desc: "2026.3.11。瀨戶內海的平靜海風，夾雜著遠處微弱的船笛聲，是港口特有的節奏。"
     },
     {
         id: "kanazawa",
@@ -34,7 +34,7 @@ const locations = [
         coords: [36.5621, 136.6627],
         audio: "audio/kanazawa.mp3",
         image: "images/kanazawa.jpg",
-        desc: "北陸地區常見的細雨，落在鈴木大拙舘的滴答聲。"
+        desc: "2026.3.3。北陸地區冬日常見的雨，落在鈴木大拙舘上的滴答聲。"
     },
     {
         id: "uji",
@@ -42,21 +42,27 @@ const locations = [
         coords: [34.8893, 135.8077],
         audio: "audio/uji.mp3",
         image: "images/uji.jpg",
-        desc: "宇治橋下湍急的川流聲，伴隨著兩岸茶香，記錄下流動的時間。"
+        desc: "2026.1.17。宇治橋下湍急的川流聲，伴隨著兩岸茶香，記錄下流動的時間。"
     }
 ];
 
-// 記錄當前正在顯示的地點 ID，防止隨機重複
 let currentLocId = null;
 
-// 初始化地圖
+// --- 關鍵修改：自動判斷螢幕寬度來決定初始縮放 ---
+const isMobile = window.innerWidth < 768;
+const initialZoom = isMobile ? 5 : 6; // 手機用 5 (看更廣), 電腦用 6
+const initialCenter = [37.5, 137.5]; // 稍微往北偏一點，讓日本列島居中
+
 const map = L.map('map', {
     zoomControl: false, 
-    maxBounds: [[24, 122], [46, 154]], 
-    minZoom: 5
-}).setView([35.2, 136.0], 6);
+    maxBounds: [[20, 115], [50, 155]], // 放寬邊界限制，讓移動更順暢
+    minZoom: 4,
+    maxZoom: 12
+}).setView(initialCenter, initialZoom);
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+// --- 樣式更換：你可以更換下面的網址來切換地圖風格 ---
+// 這裡換成了更乾淨的深色樣式 (Dark Matter)
+L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
     attribution: '© CARTO'
 }).addTo(map);
 
@@ -107,7 +113,7 @@ locations.forEach(loc => {
 
 // 進入沉浸模式
 function enterImmersive(loc) {
-    currentLocId = loc.id; // 更新當前 ID
+    currentLocId = loc.id;
     const overlay = document.getElementById('image-overlay');
     const bgImg = document.getElementById('bg-image');
     const backBtn = document.getElementById('back-btn');
@@ -115,7 +121,7 @@ function enterImmersive(loc) {
 
     bgImg.style.backgroundImage = `url('${loc.image}')`;
     
-    // 針對豎版照片的優化：在橫屏電腦上使用 contain 避免裁切，在手機上使用 cover
+    // 電腦橫屏用 contain，手機豎屏用 cover
     if (window.innerWidth > window.innerHeight) {
         bgImg.style.backgroundSize = "contain";
     } else {
@@ -149,7 +155,7 @@ document.getElementById('back-btn').addEventListener('click', () => {
     
     bgImg.style.opacity = "0";
     bgImg.classList.remove('zooming');
-    currentLocId = null; // 重置
+    currentLocId = null;
 
     if (gainNode) {
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
@@ -157,18 +163,20 @@ document.getElementById('back-btn').addEventListener('click', () => {
     }
 });
 
-// 隨機按鈕 (優化：不重複抽取當前地點)
+// 隨機按鈕
 document.getElementById('surprise-btn').addEventListener('click', () => {
-    // 過濾掉當前正在看的地點
     const otherLocations = locations.filter(l => l.id !== currentLocId);
+    if (otherLocations.length === 0) return; // 如果只有一個點，就不跳轉
+    
     const randomLoc = otherLocations[Math.floor(Math.random() * otherLocations.length)];
     
-    // 如果正在沉浸模式，先退出
+    // 如果在沉浸模式，先退出
     document.getElementById('back-btn').click();
 
-    // 延遲跳轉地圖
     setTimeout(() => {
-        map.flyTo(randomLoc.coords, 10, { animate: true, duration: 2 });
+        // 跳轉時的縮放層級：如果是手機跳到 7，電腦跳到 9
+        const jumpZoom = isMobile ? 7 : 9;
+        map.flyTo(randomLoc.coords, jumpZoom, { animate: true, duration: 2 });
         setTimeout(() => enterImmersive(randomLoc), 2200);
     }, 500);
 });
