@@ -1,9 +1,8 @@
 /**
- * 聲音郵局 (Sound Postcard) - 穩定版
- * 優化：解決圖片不顯示問題、強化淡入淡出效果
+ * 聲音郵局 (Sound Postcard) - 交互優化版
+ * 修復：隨機地點重複問題、豎版照片裁切問題
  */
 
-// 1. 數據庫
 const locations = [
     {
         id: "nara",
@@ -35,7 +34,7 @@ const locations = [
         coords: [36.5621, 136.6627],
         audio: "audio/kanazawa.mp3",
         image: "images/kanazawa.jpg",
-        desc: "北陸地區常見的細雨，落在兼六園木質長椅上的滴答聲。"
+        desc: "北陸地區常見的細雨，落在鈴木大拙舘的滴答聲。"
     },
     {
         id: "uji",
@@ -47,7 +46,10 @@ const locations = [
     }
 ];
 
-// 2. 初始化地圖
+// 記錄當前正在顯示的地點 ID，防止隨機重複
+let currentLocId = null;
+
+// 初始化地圖
 const map = L.map('map', {
     zoomControl: false, 
     maxBounds: [[24, 122], [46, 154]], 
@@ -58,7 +60,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© CARTO'
 }).addTo(map);
 
-// 3. Web Audio API 設定
+// Web Audio API
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx;
 let currentBufferSource;
@@ -96,56 +98,58 @@ async function playSound(url) {
     }
 }
 
-// 4. 地圖標記
+// 地圖標記
 const customIcon = L.divIcon({ className: 'glow-point', iconSize: [12, 12], iconAnchor: [6, 6] });
 
 locations.forEach(loc => {
     L.marker(loc.coords, { icon: customIcon }).addTo(map).on('click', () => enterImmersive(loc));
 });
 
-// 5. 進入沉浸模式 (核心修正)
+// 進入沉浸模式
 function enterImmersive(loc) {
+    currentLocId = loc.id; // 更新當前 ID
     const overlay = document.getElementById('image-overlay');
     const bgImg = document.getElementById('bg-image');
     const backBtn = document.getElementById('back-btn');
     const stamp = document.getElementById('stamp');
 
-    // 1. 先更換背景圖路徑
     bgImg.style.backgroundImage = `url('${loc.image}')`;
     
-    // 2. 顯示容器
+    // 針對豎版照片的優化：在橫屏電腦上使用 contain 避免裁切，在手機上使用 cover
+    if (window.innerWidth > window.innerHeight) {
+        bgImg.style.backgroundSize = "contain";
+    } else {
+        bgImg.style.backgroundSize = "cover";
+    }
+
     overlay.style.display = 'block';
     backBtn.style.display = 'block';
 
-    // 3. 強制觸發圖片顯示與動畫 (使用 setTimeout 確保渲染順序)
     setTimeout(() => {
-        bgImg.style.opacity = "0.6"; // 直接給透明度
+        bgImg.style.opacity = "0.7"; 
         bgImg.classList.add('zooming');
     }, 50);
 
-    // 4. 更新文字
     document.getElementById('loc-name').innerText = loc.name;
     document.getElementById('loc-desc').innerText = loc.desc;
     
-    // 5. 更新郵戳
     document.getElementById('stamp-loc').innerText = loc.name.split('・')[0];
     document.getElementById('stamp-coord').innerText = `${loc.coords[0]}° N, ${loc.coords[1]}° E`;
     stamp.classList.add('active');
     
-    // 6. 播放聲音
     playSound(loc.audio);
 }
 
-// 6. 返回地圖
+// 返回地圖
 document.getElementById('back-btn').addEventListener('click', () => {
     const bgImg = document.getElementById('bg-image');
     document.getElementById('image-overlay').style.display = 'none';
     document.getElementById('back-btn').style.display = 'none';
     document.getElementById('stamp').classList.remove('active');
     
-    // 重置圖片狀態
     bgImg.style.opacity = "0";
     bgImg.classList.remove('zooming');
+    currentLocId = null; // 重置
 
     if (gainNode) {
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
@@ -153,9 +157,18 @@ document.getElementById('back-btn').addEventListener('click', () => {
     }
 });
 
-// 7. 隨機按鈕
+// 隨機按鈕 (優化：不重複抽取當前地點)
 document.getElementById('surprise-btn').addEventListener('click', () => {
-    const randomLoc = locations[Math.floor(Math.random() * locations.length)];
-    map.flyTo(randomLoc.coords, 10, { animate: true, duration: 2 });
-    setTimeout(() => enterImmersive(randomLoc), 2500);
+    // 過濾掉當前正在看的地點
+    const otherLocations = locations.filter(l => l.id !== currentLocId);
+    const randomLoc = otherLocations[Math.floor(Math.random() * otherLocations.length)];
+    
+    // 如果正在沉浸模式，先退出
+    document.getElementById('back-btn').click();
+
+    // 延遲跳轉地圖
+    setTimeout(() => {
+        map.flyTo(randomLoc.coords, 10, { animate: true, duration: 2 });
+        setTimeout(() => enterImmersive(randomLoc), 2200);
+    }, 500);
 });
