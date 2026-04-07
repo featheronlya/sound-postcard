@@ -10,12 +10,11 @@
     
     <style>
         :root {
-            --accent: #fff;
-            --glass: rgba(0, 0, 0, 0.45);
+            --glass: rgba(0,0,0,0.28);
+            --card-border: 14px;
+            --card-border-btm: 48px;
         }
-
-        *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
+        *, *::before, *::after { box-sizing: border-box; }
         body, html {
             margin: 0; padding: 0; height: 100%;
             background: #000; color: #fff;
@@ -24,110 +23,268 @@
         }
 
         /* ── 地圖 ── */
-        #map { height: 100vh; width: 100%; filter: grayscale(0.2); }
+        #map {
+            height: 100vh; width: 100%;
+            filter: grayscale(0.2);
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='7' stroke='white' stroke-width='1.2' fill='none' opacity='0.8'/%3E%3C/svg%3E") 10 10, crosshair;
+        }
 
         /* ── 引導頁 ── */
         #intro {
             position: fixed; inset: 0; z-index: 9999;
-            background: #000; display: flex; flex-direction: column;
+            background: #000;
+            display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            cursor: pointer; transition: opacity 1.8s ease;
+            cursor: pointer;
+            transition: opacity 1.8s ease;
         }
         #intro.fade-out { opacity: 0; pointer-events: none; }
-        #intro-title { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 300; letter-spacing: 0.25em; margin: 0; opacity: 0; transform: translateY(12px); animation: fade-up 1.4s 0.3s ease forwards; }
-        #intro-sub { font-family: 'Cormorant Garamond', serif; font-size: clamp(0.8rem, 2vw, 1rem); font-style: italic; color: rgba(255,255,255,0.45); margin: 18px 0 0 0; opacity: 0; animation: fade-up 1.4s 0.7s ease forwards; }
-        #intro-hint { position: absolute; bottom: 48px; font-family: 'Cormorant Garamond', serif; font-size: 0.7rem; color: rgba(255,255,255,0.25); text-transform: uppercase; opacity: 0; animation: fade-up 1.4s 1.2s ease forwards, blink 2.5s 2.5s ease-in-out infinite; }
-        @keyframes fade-up { to { opacity: 1; transform: translateY(0); } }
-        @keyframes blink { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.5; } }
+        #intro-title {
+            font-family: 'Noto Serif TC', serif;
+            font-size: clamp(2rem, 6vw, 3.5rem);
+            font-weight: 300; letter-spacing: 0.25em; margin: 0;
+            opacity: 0; transform: translateY(12px);
+            animation: fade-up 1.4s 0.3s ease forwards;
+        }
+        #intro-line {
+            width: 1px; height: 0;
+            background: rgba(255,255,255,0.2);
+            margin: 28px auto 0;
+            animation: grow-line 1.2s 0.5s ease forwards;
+        }
+        #intro-sub {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(0.8rem, 2vw, 1rem); font-style: italic;
+            color: rgba(255,255,255,0.45); letter-spacing: 0.15em;
+            margin: 18px 0 0; opacity: 0;
+            animation: fade-up 1.4s 0.7s ease forwards;
+        }
+        #intro-hint {
+            position: absolute; bottom: 48px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 0.7rem; letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.25); text-transform: uppercase;
+            opacity: 0;
+            animation: fade-up 1.4s 1.2s ease forwards, blink 2.5s 2.5s ease-in-out infinite;
+        }
+        @keyframes grow-line { to { height: 60px; } }
+        @keyframes fade-up   { to { opacity: 1; transform: translateY(0); } }
+        @keyframes blink     { 0%,100%{ opacity:.25; } 50%{ opacity:.5; } }
 
-        /* ── 圖片疊層 ── */
+        /* ── 沈浸遮罩 ── */
         #image-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; display: none; z-index: 2000;
+            position: fixed; inset: 0; z-index: 2000;
+            background: rgba(0,0,0,0.88);
+            display: none;
+            align-items: center; justify-content: center;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 60px 0 80px;
         }
-        #bg-image {
-            width: 100%; height: 100%;
-            background-repeat: no-repeat; background-position: center; background-size: cover;
-            opacity: 0; transition: opacity 1.2s ease-in-out, transform 22s linear;
-        }
-        #bg-image.zooming { transform: scale(1.1); }
+        #image-overlay.open { display: flex; }
 
-        /* ── 文字卡 ── */
+        /* 全域膠片顆粒 */
+        #image-overlay::before {
+            content: '';
+            position: fixed; inset: 0; z-index: 1;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+            background-size: 200px 200px;
+            opacity: 0.2; pointer-events: none; mix-blend-mode: overlay;
+        }
+
+        /* ── 明信片包裝 ── */
+        #postcard-wrap {
+            position: relative; z-index: 10;
+            display: flex; flex-direction: column; align-items: center;
+            opacity: 0;
+            transform: rotate(var(--tilt, -1deg)) translateY(55px) scale(0.95);
+        }
+        #postcard-wrap.revealed {
+            animation: card-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes card-in {
+            0%   { opacity: 0; transform: rotate(var(--tilt,-1deg)) translateY(55px) scale(0.95); }
+            100% { opacity: 1; transform: rotate(var(--tilt,-1deg)) translateY(0)    scale(1);    }
+        }
+
+        /* 白邊卡片 */
+        #postcard {
+            background: #f4ede0;
+            padding: var(--card-border) var(--card-border) var(--card-border-btm);
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.4),
+                0 16px 48px rgba(0,0,0,0.65),
+                inset 0 0 0 1px rgba(0,0,0,0.06);
+            position: relative;
+        }
+
+        /* 照片 */
+        #bg-image {
+            display: block;
+            width: min(68vw, 500px);
+            height: min(46vw, 330px);
+            object-fit: cover;
+            filter: saturate(0.85) contrast(1.06);
+        }
+
+        /* 卡片底部小字 */
+        #card-caption {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic; font-size: 0.68rem;
+            color: #7a6555; letter-spacing: 0.06em;
+            margin-top: 10px; text-align: center; line-height: 1.5;
+        }
+
+        /* ── 資訊欄（卡片下方） ── */
         #info-text {
-            position: absolute; bottom: 40px; left: 40px;
-            max-width: 320px; z-index: 2100;
-            padding: 22px 26px;
+            margin-top: 20px;
+            width: min(68vw, 500px);
+            padding: 18px 22px;
             background: var(--glass);
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            border-left: 1.5px solid rgba(255,255,255,0.4);
-            opacity: 0; transition: opacity 2s ease; 
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-left: 1.5px solid rgba(255,255,255,0.3);
+            opacity: 0;
+            transition: opacity 1.6s ease;
+            pointer-events: none;
+        }
+        #loc-name {
+            font-size: 1.18rem; font-weight: 500; margin: 0 0 8px;
+            letter-spacing: 2px;
+        }
+        #loc-desc {
+            font-size: 0.8rem; line-height: 1.9;
+            color: rgba(255,255,255,0.76); font-weight: 300; margin: 0;
         }
 
         /* ── 郵戳 ── */
         #stamp {
-            position: absolute; bottom: 40px; right: 40px; z-index: 3000;
-            border: 1.5px solid rgba(255,255,255,0.5); padding: 12px 14px;
+            position: fixed;
+            bottom: 38px; right: 38px;
+            z-index: 3000;
+            border: 1px solid rgba(255,255,255,0.32); padding: 12px 15px;
             font-family: 'Cormorant Garamond', serif; text-transform: uppercase;
-            font-size: 0.6rem; letter-spacing: 1.2px; opacity: 0; pointer-events: none;
+            font-size: 0.6rem; line-height: 1.75; letter-spacing: 1.1px;
+            opacity: 0; pointer-events: none;
+            transform: rotate(-6deg) scale(1.9);
         }
-        .stamp-effect { animation: stamp-drop-long 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
-        @keyframes stamp-drop-long {
-            0% { opacity: 0; transform: rotate(-20deg) scale(3); filter: blur(8px); }
-            70% { opacity: 1; transform: rotate(-5deg) scale(0.95); filter: blur(0px); }
-            100% { opacity: 0.6; transform: rotate(-5deg) scale(1); }
+        #stamp.active {
+            animation: stamp-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes stamp-in {
+            0%   { opacity: 0;    transform: rotate(-6deg) scale(1.9); }
+            55%  { opacity: 0.85; transform: rotate(-6deg) scale(0.9); }
+            100% { opacity: 0.6;  transform: rotate(-6deg) scale(1);   }
         }
 
-        /* ── UI 按鈕 ── */
+        /* ── 按鈕 ── */
         .ui-btn {
-            position: absolute; z-index: 4000;
-            background: none; border: 1px solid rgba(255,255,255,0.3);
-            color: #fff; padding: 10px 20px; font-family: 'Cormorant Garamond', serif;
-            letter-spacing: 2px; cursor: pointer; font-size: 0.75rem; transition: 0.35s;
+            position: fixed; z-index: 3000;
+            background: none; border: 1px solid rgba(255,255,255,0.28);
+            color: #fff; padding: 8px 18px;
+            font-family: 'Cormorant Garamond', serif;
+            letter-spacing: 2px; cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+            font-size: 0.78rem;
         }
         .ui-btn:hover { background: #fff; color: #000; }
-        #back-btn { top: 30px; left: 20px; display: none; }
-        #surprise-btn { bottom: 25px; left: 50%; transform: translateX(-50%); width: 160px; }
+        #back-btn     { top: 28px; left: 28px; display: none; }
+        #surprise-btn { bottom: 28px; left: 28px; }
 
-        #pulse-wrap { position: absolute; top: 30px; right: 20px; z-index: 4100; width: 40px; height: 40px; opacity: 0; transition: 1s; display: flex; align-items: center; justify-content: center; }
-        #pulse-ring { width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+        /* ── 音頻脈衝 ── */
+        #pulse-wrap {
+            position: fixed; top: 28px; right: 28px; z-index: 3100;
+            width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 1s ease;
+        }
+        #pulse-wrap.visible { opacity: 1; }
+        #pulse-ripple {
+            position: absolute;
+            width: 12px; height: 12px; border-radius: 50%;
+            border: 1.5px solid rgba(255,255,255,0.6);
+        }
+        #pulse-ring {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: rgba(255,255,255,0.95);
+            position: relative; z-index: 1;
+        }
+        @keyframes ripple-out {
+            0%   { transform: scale(1);   opacity: 0.65; }
+            100% { transform: scale(5);   opacity: 0; }
+        }
 
-        .glow-point { width: 15px; height: 15px; background: #fff; border-radius: 50%; box-shadow: 0 0 15px #fff; animation: breathe 4s infinite; }
-        @keyframes breathe { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } }
+        /* ── 地圖標記 ── */
+        .glow-point {
+            width: 8px; height: 8px;
+            background: #fff; border-radius: 50%;
+            box-shadow: 0 0 10px #fff;
+            animation: breathe 4s infinite ease-in-out;
+        }
+        @keyframes breathe {
+            0%,100% { opacity: 0.2; transform: scale(1); }
+            50%      { opacity: 0.9; transform: scale(1.35); }
+        }
 
+        /* ── RWD ── */
         @media (max-width: 768px) {
-            #info-text { left: 0; right: 0; bottom: 0; max-width: none; padding: 30px 25px 90px; border-left: none; border-top: 1px solid rgba(255,255,255,0.2); }
-            #stamp { bottom: auto; top: 80px; right: 20px; transform: scale(0.8); }
+            :root {
+                --card-border: 10px;
+                --card-border-btm: 34px;
+            }
+            #image-overlay { padding: 50px 0 70px; }
+            #bg-image  { width: 86vw; height: 57vw; }
+            #info-text { width: 86vw; margin-top: 14px; padding: 14px 16px; }
+            #stamp     { bottom: 22px; right: 18px; font-size: 0.52rem; padding: 9px 11px; }
+            #back-btn  { top: 20px; left: 20px; }
+            #surprise-btn { bottom: 20px; left: 20px; }
+            #pulse-wrap   { top: 20px; right: 20px; }
         }
     </style>
 </head>
 <body>
 
+    <!-- 引導頁 -->
     <div id="intro">
         <h1 id="intro-title">聲音郵局</h1>
+        <div id="intro-line"></div>
         <p id="intro-sub">Sound Postcard — A Collection of Real Moments</p>
         <span id="intro-hint">Click anywhere to enter</span>
     </div>
 
+    <!-- 地圖 -->
     <div id="map"></div>
 
+    <!-- 沈浸層 -->
     <div id="image-overlay">
-        <div id="bg-image"></div>
-        <div id="info-text">
-            <h2 id="loc-name" style="margin:0 0 12px 0;"></h2>
-            <p id="loc-desc" style="margin:0; line-height: 1.8; font-size: 0.85rem; color: rgba(255,255,255,0.85);"></p>
+        <div id="postcard-wrap">
+            <div id="postcard">
+                <img id="bg-image" src="" alt="" />
+                <div id="card-caption"></div>
+            </div>
+            <div id="info-text">
+                <h2 id="loc-name"></h2>
+                <p id="loc-desc"></p>
+            </div>
         </div>
     </div>
 
+    <!-- 按鈕 -->
     <button id="back-btn" class="ui-btn">← BACK</button>
     <button id="surprise-btn" class="ui-btn">SURPRISE ME</button>
 
+    <!-- 郵戳 -->
     <div id="stamp">
         Collected at: <span id="stamp-loc"></span><br>
         <span id="stamp-coord"></span><br>
         Original Recording
     </div>
 
-    <div id="pulse-wrap"><div id="pulse-ring"></div></div>
+    <!-- 音頻脈衝 -->
+    <div id="pulse-wrap">
+        <div id="pulse-ripple"></div>
+        <div id="pulse-ring"></div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
