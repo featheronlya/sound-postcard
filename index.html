@@ -11,9 +11,28 @@
     <style>
         :root {
             --glass: rgba(0,0,0,0.28);
-            --card-border: 14px;
-            --card-border-btm: 48px;
+            --card-w: 260px;
+            --card-h: 360px;
+            --border: 10px;
+            --border-btm: 42px;
+            --env-color: #e8ddd0;
+            --env-inner: #d4c8b8;
         }
+        @media (min-width: 600px) {
+            :root {
+                --card-w: 320px;
+                --card-h: 440px;
+                --border: 13px;
+                --border-btm: 52px;
+            }
+        }
+        @media (min-width: 900px) {
+            :root {
+                --card-w: 380px;
+                --card-h: 520px;
+            }
+        }
+
         *, *::before, *::after { box-sizing: border-box; }
         body, html {
             margin: 0; padding: 0; height: 100%;
@@ -74,94 +93,150 @@
         /* ── 沈浸遮罩 ── */
         #image-overlay {
             position: fixed; inset: 0; z-index: 2000;
-            background: rgba(0,0,0,0.88);
+            background: rgba(0,0,0,0.9);
             display: none;
             align-items: center; justify-content: center;
-            flex-direction: column;
-            overflow-y: auto;
-            padding: 60px 0 80px;
         }
         #image-overlay.open { display: flex; }
 
-        /* 全域膠片顆粒 */
+        /* 膠片顆粒 */
         #image-overlay::before {
             content: '';
             position: fixed; inset: 0; z-index: 1;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
             background-size: 200px 200px;
-            opacity: 0.2; pointer-events: none; mix-blend-mode: overlay;
+            opacity: 0.18; pointer-events: none; mix-blend-mode: overlay;
         }
 
-        /* ── 明信片包裝 ── */
-        #postcard-wrap {
+        /* ── 信封 ── */
+        #envelope-scene {
             position: relative; z-index: 10;
-            display: flex; flex-direction: column; align-items: center;
-            opacity: 0;
-            transform: rotate(var(--tilt, -1deg)) translateY(55px) scale(0.95);
+            width: var(--card-w);
+            /* 信封高度 = 卡片下半部份（蓋住底部） */
+            height: calc(var(--card-h) * 0.55);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
         }
-        #postcard-wrap.revealed {
-            animation: card-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+
+        /* 信封本體 */
+        #envelope {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 100%;
+            background: var(--env-color);
+            overflow: hidden; /* 遮住卡片底部 */
         }
-        @keyframes card-in {
-            0%   { opacity: 0; transform: rotate(var(--tilt,-1deg)) translateY(55px) scale(0.95); }
-            100% { opacity: 1; transform: rotate(var(--tilt,-1deg)) translateY(0)    scale(1);    }
+        /* 信封底部V形紋 */
+        #envelope::after {
+            content: '';
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 60%;
+            background: linear-gradient(135deg, var(--env-inner) 50%, transparent 50%),
+                        linear-gradient(225deg, var(--env-inner) 50%, transparent 50%);
+            background-size: 50% 100%;
+            background-position: left, right;
+            background-repeat: no-repeat;
+        }
+
+        /* 信封蓋（三角 flap），perspective 容器 */
+        #flap-wrap {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 60%;               /* flap 占信封上半 */
+            perspective: 600px;
+            perspective-origin: center top;
+            overflow: visible;
+            z-index: 2;
+        }
+        #flap {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            transform-origin: top center;
+            transform: rotateX(0deg);
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            /* 三角形 flap */
+            background: var(--env-color);
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+            /* 開口陰影感 */
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25));
+        }
+        #flap.open {
+            transform: rotateX(-175deg);
+        }
+
+        /* ── 明信片（在信封之上，初始只露出少許） ── */
+        #postcard-wrap {
+            position: absolute;
+            /* 卡片底部對齊信封底部，靠動畫向上滑出 */
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) rotate(var(--tilt, 0deg)) translateY(0px);
+            z-index: 1;           /* 初始在 flap 後面 */
+            transition: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #postcard-wrap.slide-up {
+            z-index: 3;           /* 滑出後浮到信封前面 */
+            animation: slide-up 1s 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes slide-up {
+            0%   { transform: translateX(-50%) rotate(var(--tilt,0deg)) translateY(0px); }
+            100% { transform: translateX(-50%) rotate(var(--tilt,0deg)) translateY(calc(-1 * var(--card-h) * 0.58)); }
         }
 
         /* 白邊卡片 */
         #postcard {
+            width: var(--card-w);
             background: #f4ede0;
-            padding: var(--card-border) var(--card-border) var(--card-border-btm);
+            padding: var(--border) var(--border) var(--border-btm);
             box-shadow:
-                0 2px 8px rgba(0,0,0,0.4),
-                0 16px 48px rgba(0,0,0,0.65),
+                0 2px 8px rgba(0,0,0,0.35),
+                0 16px 50px rgba(0,0,0,0.6),
                 inset 0 0 0 1px rgba(0,0,0,0.06);
-            position: relative;
         }
-
-        /* 照片 */
         #bg-image {
             display: block;
-            width: min(68vw, 500px);
-            height: min(46vw, 330px);
+            width: 100%;
+            aspect-ratio: 3 / 4;
             object-fit: cover;
             filter: saturate(0.85) contrast(1.06);
         }
-
-        /* 卡片底部小字 */
         #card-caption {
             font-family: 'Cormorant Garamond', serif;
-            font-style: italic; font-size: 0.68rem;
+            font-style: italic; font-size: 0.65rem;
             color: #7a6555; letter-spacing: 0.06em;
-            margin-top: 10px; text-align: center; line-height: 1.5;
+            margin-top: 9px; text-align: center; line-height: 1.5;
         }
 
-        /* ── 資訊欄（卡片下方） ── */
+        /* ── 資訊欄（卡片下方，卡片滑出後出現） ── */
         #info-text {
-            margin-top: 20px;
-            width: min(68vw, 500px);
-            padding: 18px 22px;
+            width: var(--card-w);
+            margin-top: 16px;
+            padding: 16px 20px;
             background: var(--glass);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
             border-left: 1.5px solid rgba(255,255,255,0.3);
             opacity: 0;
-            transition: opacity 1.6s ease;
+            transition: opacity 1.4s ease;
             pointer-events: none;
         }
         #loc-name {
-            font-size: 1.18rem; font-weight: 500; margin: 0 0 8px;
+            font-size: 1.1rem; font-weight: 500; margin: 0 0 8px;
             letter-spacing: 2px;
         }
         #loc-desc {
-            font-size: 0.8rem; line-height: 1.9;
+            font-size: 0.78rem; line-height: 1.9;
             color: rgba(255,255,255,0.76); font-weight: 300; margin: 0;
         }
 
         /* ── 郵戳 ── */
         #stamp {
             position: fixed;
-            bottom: 38px; right: 38px;
-            z-index: 3000;
+            bottom: 36px; right: 36px; z-index: 3000;
             border: 1px solid rgba(255,255,255,0.32); padding: 12px 15px;
             font-family: 'Cormorant Garamond', serif; text-transform: uppercase;
             font-size: 0.6rem; line-height: 1.75; letter-spacing: 1.1px;
@@ -174,7 +249,7 @@
         @keyframes stamp-in {
             0%   { opacity: 0;    transform: rotate(-6deg) scale(1.9); }
             55%  { opacity: 0.85; transform: rotate(-6deg) scale(0.9); }
-            100% { opacity: 0.6;  transform: rotate(-6deg) scale(1);   }
+            100% { opacity: 0.6;  transform: rotate(-6deg) scale(1); }
         }
 
         /* ── 按鈕 ── */
@@ -210,8 +285,8 @@
             position: relative; z-index: 1;
         }
         @keyframes ripple-out {
-            0%   { transform: scale(1);   opacity: 0.65; }
-            100% { transform: scale(5);   opacity: 0; }
+            0%   { transform: scale(1); opacity: 0.65; }
+            100% { transform: scale(5); opacity: 0; }
         }
 
         /* ── 地圖標記 ── */
@@ -227,18 +302,11 @@
         }
 
         /* ── RWD ── */
-        @media (max-width: 768px) {
-            :root {
-                --card-border: 10px;
-                --card-border-btm: 34px;
-            }
-            #image-overlay { padding: 50px 0 70px; }
-            #bg-image  { width: 86vw; height: 57vw; }
-            #info-text { width: 86vw; margin-top: 14px; padding: 14px 16px; }
-            #stamp     { bottom: 22px; right: 18px; font-size: 0.52rem; padding: 9px 11px; }
-            #back-btn  { top: 20px; left: 20px; }
-            #surprise-btn { bottom: 20px; left: 20px; }
-            #pulse-wrap   { top: 20px; right: 20px; }
+        @media (max-width: 500px) {
+            #stamp { bottom: 18px; right: 14px; font-size: 0.52rem; padding: 8px 10px; }
+            #back-btn { top: 18px; left: 18px; }
+            #surprise-btn { bottom: 18px; left: 18px; }
+            #pulse-wrap { top: 18px; right: 18px; }
         }
     </style>
 </head>
@@ -257,15 +325,28 @@
 
     <!-- 沈浸層 -->
     <div id="image-overlay">
-        <div id="postcard-wrap">
-            <div id="postcard">
-                <img id="bg-image" src="" alt="" />
-                <div id="card-caption"></div>
+        <!-- 信封場景 -->
+        <div id="envelope-scene">
+
+            <!-- 明信片（在信封內，向上滑出） -->
+            <div id="postcard-wrap">
+                <div id="postcard">
+                    <img id="bg-image" src="" alt="" />
+                    <div id="card-caption"></div>
+                </div>
+                <div id="info-text">
+                    <h2 id="loc-name"></h2>
+                    <p id="loc-desc"></p>
+                </div>
             </div>
-            <div id="info-text">
-                <h2 id="loc-name"></h2>
-                <p id="loc-desc"></p>
+
+            <!-- 信封本體 -->
+            <div id="envelope">
+                <div id="flap-wrap">
+                    <div id="flap"></div>
+                </div>
             </div>
+
         </div>
     </div>
 
