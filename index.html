@@ -4,33 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>聲音郵局 | Sound Postcard</title>
-    
+
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+
     <style>
         :root {
             --glass: rgba(0,0,0,0.28);
-            --card-w: 260px;
-            --card-h: 360px;
-            --border: 10px;
-            --border-btm: 42px;
-            --env-color: #e8ddd0;
-            --env-inner: #d4c8b8;
+            /* 信封尺寸 */
+            --env-w: 240px;
+            --env-h: 160px;
+            /* 信封顏色（由 JS 注入） */
+            --env-main: #c8b89a;
+            --env-dark: #b0a080;
         }
         @media (min-width: 600px) {
-            :root {
-                --card-w: 320px;
-                --card-h: 440px;
-                --border: 13px;
-                --border-btm: 52px;
-            }
+            :root { --env-w: 300px; --env-h: 200px; }
         }
         @media (min-width: 900px) {
-            :root {
-                --card-w: 380px;
-                --card-h: 520px;
-            }
+            :root { --env-w: 360px; --env-h: 240px; }
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -59,15 +51,13 @@
         }
         #intro.fade-out { opacity: 0; pointer-events: none; }
         #intro-title {
-            font-family: 'Noto Serif TC', serif;
             font-size: clamp(2rem, 6vw, 3.5rem);
             font-weight: 300; letter-spacing: 0.25em; margin: 0;
             opacity: 0; transform: translateY(12px);
             animation: fade-up 1.4s 0.3s ease forwards;
         }
         #intro-line {
-            width: 1px; height: 0;
-            background: rgba(255,255,255,0.2);
+            width: 1px; height: 0; background: rgba(255,255,255,0.2);
             margin: 28px auto 0;
             animation: grow-line 1.2s 0.5s ease forwards;
         }
@@ -90,146 +80,131 @@
         @keyframes fade-up   { to { opacity: 1; transform: translateY(0); } }
         @keyframes blink     { 0%,100%{ opacity:.25; } 50%{ opacity:.5; } }
 
-        /* ── 沈浸遮罩 ── */
+        /* ═══════════════════════════════════════
+           沈浸層：兩個階段
+           phase-envelope → 顯示信封
+           phase-photo    → 顯示照片
+        ═══════════════════════════════════════ */
         #image-overlay {
             position: fixed; inset: 0; z-index: 2000;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0);
             display: none;
             align-items: center; justify-content: center;
+            transition: background 0.6s ease;
         }
-        #image-overlay.open { display: flex; }
+        #image-overlay.open         { display: flex; }
+        #image-overlay.phase-envelope { background: rgba(0,0,0,0.82); }
+        #image-overlay.phase-photo    { background: rgba(0,0,0,0.92); }
 
-        /* 膠片顆粒 */
+        /* 膠片顆粒（phase-photo 時才完全顯示） */
         #image-overlay::before {
             content: '';
             position: fixed; inset: 0; z-index: 1;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
             background-size: 200px 200px;
-            opacity: 0.18; pointer-events: none; mix-blend-mode: overlay;
+            opacity: 0; pointer-events: none; mix-blend-mode: overlay;
+            transition: opacity 1s ease;
         }
+        #image-overlay.phase-photo::before { opacity: 0.2; }
 
-        /* ── 信封 ── */
-        #envelope-scene {
-            position: relative; z-index: 10;
-            width: var(--card-w);
-            /* 信封高度 = 卡片下半部份（蓋住底部） */
-            height: calc(var(--card-h) * 0.55);
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
+        /* ── 信封舞台 ── */
+        #envelope-stage {
+            position: absolute; z-index: 10;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.5s ease;
         }
+        #envelope-stage.visible { opacity: 1; }
+        #envelope-stage.hidden  { opacity: 0; pointer-events: none; }
 
         /* 信封本體 */
         #envelope {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            height: 100%;
-            background: var(--env-color);
-            overflow: hidden; /* 遮住卡片底部 */
+            width: var(--env-w);
+            height: var(--env-h);
+            background: var(--env-main);
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            overflow: hidden;
         }
-        /* 信封底部V形紋 */
+        /* V形底紋 */
         #envelope::after {
             content: '';
-            position: absolute; bottom: 0; left: 0; right: 0;
-            height: 60%;
-            background: linear-gradient(135deg, var(--env-inner) 50%, transparent 50%),
-                        linear-gradient(225deg, var(--env-inner) 50%, transparent 50%);
+            position: absolute; inset: 0;
+            background:
+                linear-gradient(135deg, var(--env-dark) 50%, transparent 50%),
+                linear-gradient(225deg, var(--env-dark) 50%, transparent 50%);
             background-size: 50% 100%;
-            background-position: left, right;
+            background-position: left bottom, right bottom;
             background-repeat: no-repeat;
         }
 
-        /* 信封蓋（三角 flap），perspective 容器 */
+        /* flap 容器（perspective） */
         #flap-wrap {
             position: absolute;
             top: 0; left: 0; right: 0;
-            height: 60%;               /* flap 占信封上半 */
-            perspective: 600px;
+            height: 55%;
+            perspective: 500px;
             perspective-origin: center top;
-            overflow: visible;
-            z-index: 2;
+            z-index: 3; overflow: visible;
         }
         #flap {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            position: absolute; inset: 0;
+            background: var(--env-main);
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
             transform-origin: top center;
             transform: rotateX(0deg);
-            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-            /* 三角形 flap */
-            background: var(--env-color);
-            clip-path: polygon(0 0, 100% 0, 50% 100%);
-            /* 開口陰影感 */
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25));
+            transition: transform 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: brightness(0.92) drop-shadow(0 3px 5px rgba(0,0,0,0.3));
         }
-        #flap.open {
-            transform: rotateX(-175deg);
-        }
+        #flap.open { transform: rotateX(-178deg); }
 
-        /* ── 明信片（在信封之上，初始只露出少許） ── */
-        #postcard-wrap {
-            position: absolute;
-            /* 卡片底部對齊信封底部，靠動畫向上滑出 */
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%) rotate(var(--tilt, 0deg)) translateY(0px);
-            z-index: 1;           /* 初始在 flap 後面 */
-            transition: none;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        /* ── 照片層（初始 = 信封尺寸，放大至全屏） ── */
+        #photo-layer {
+            position: absolute; inset: 0; z-index: 5;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none;
         }
-        #postcard-wrap.slide-up {
-            z-index: 3;           /* 滑出後浮到信封前面 */
-            animation: slide-up 1s 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        #photo-wrap {
+            /* 初始與信封同寬高，transition 過渡到全屏 */
+            width: var(--env-w);
+            height: var(--env-h);
+            overflow: hidden;
+            opacity: 0;
+            transition:
+                width  1.1s cubic-bezier(0.4, 0, 0.2, 1),
+                height 1.1s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.8s ease;
         }
-        @keyframes slide-up {
-            0%   { transform: translateX(-50%) rotate(var(--tilt,0deg)) translateY(0px); }
-            100% { transform: translateX(-50%) rotate(var(--tilt,0deg)) translateY(calc(-1 * var(--card-h) * 0.58)); }
-        }
-
-        /* 白邊卡片 */
-        #postcard {
-            width: var(--card-w);
-            background: #f4ede0;
-            padding: var(--border) var(--border) var(--border-btm);
-            box-shadow:
-                0 2px 8px rgba(0,0,0,0.35),
-                0 16px 50px rgba(0,0,0,0.6),
-                inset 0 0 0 1px rgba(0,0,0,0.06);
+        #photo-wrap.expand {
+            width: 100vw;
+            height: 100vh;
+            opacity: 1;
         }
         #bg-image {
-            display: block;
-            width: 100%;
-            aspect-ratio: 3 / 4;
+            width: 100%; height: 100%;
             object-fit: cover;
-            filter: saturate(0.85) contrast(1.06);
-        }
-        #card-caption {
-            font-family: 'Cormorant Garamond', serif;
-            font-style: italic; font-size: 0.65rem;
-            color: #7a6555; letter-spacing: 0.06em;
-            margin-top: 9px; text-align: center; line-height: 1.5;
+            filter: saturate(0.88) contrast(1.05);
+            display: block;
         }
 
-        /* ── 資訊欄（卡片下方，卡片滑出後出現） ── */
+        /* ── 文字卡（照片上方） ── */
         #info-text {
-            width: var(--card-w);
-            margin-top: 16px;
-            padding: 16px 20px;
+            position: absolute;
+            bottom: 40px; left: 40px;
+            max-width: 320px; z-index: 20;
+            padding: 20px 24px;
             background: var(--glass);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
-            border-left: 1.5px solid rgba(255,255,255,0.3);
-            opacity: 0;
-            transition: opacity 1.4s ease;
+            border-left: 1.5px solid rgba(255,255,255,0.35);
             pointer-events: none;
+            opacity: 0; transition: opacity 1.4s ease;
         }
         #loc-name {
-            font-size: 1.1rem; font-weight: 500; margin: 0 0 8px;
+            font-size: 1.3rem; font-weight: 500; margin: 0 0 9px;
             letter-spacing: 2px;
         }
         #loc-desc {
-            font-size: 0.78rem; line-height: 1.9;
+            font-size: 0.8rem; line-height: 1.9;
             color: rgba(255,255,255,0.76); font-weight: 300; margin: 0;
         }
 
@@ -240,10 +215,16 @@
             border: 1px solid rgba(255,255,255,0.32); padding: 12px 15px;
             font-family: 'Cormorant Garamond', serif; text-transform: uppercase;
             font-size: 0.6rem; line-height: 1.75; letter-spacing: 1.1px;
-            opacity: 0; pointer-events: none;
+            pointer-events: none;
+            /* 完全隱藏，動畫前由 JS 控制 */
+            opacity: 0;
             transform: rotate(-6deg) scale(1.9);
+            /* 退出時的平滑過渡 */
+            transition: opacity 0.4s ease, transform 0.4s ease;
         }
         #stamp.active {
+            /* 覆蓋 transition，改用 animation */
+            transition: none;
             animation: stamp-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
         @keyframes stamp-in {
@@ -275,9 +256,8 @@
         }
         #pulse-wrap.visible { opacity: 1; }
         #pulse-ripple {
-            position: absolute;
-            width: 12px; height: 12px; border-radius: 50%;
-            border: 1.5px solid rgba(255,255,255,0.6);
+            position: absolute; width: 12px; height: 12px;
+            border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.6);
         }
         #pulse-ring {
             width: 10px; height: 10px; border-radius: 50%;
@@ -291,8 +271,7 @@
 
         /* ── 地圖標記 ── */
         .glow-point {
-            width: 8px; height: 8px;
-            background: #fff; border-radius: 50%;
+            width: 8px; height: 8px; background: #fff; border-radius: 50%;
             box-shadow: 0 0 10px #fff;
             animation: breathe 4s infinite ease-in-out;
         }
@@ -302,11 +281,12 @@
         }
 
         /* ── RWD ── */
-        @media (max-width: 500px) {
-            #stamp { bottom: 18px; right: 14px; font-size: 0.52rem; padding: 8px 10px; }
-            #back-btn { top: 18px; left: 18px; }
+        @media (max-width: 768px) {
+            #info-text { left: 20px; right: 20px; bottom: 80px; max-width: none; }
+            #stamp     { bottom: 18px; right: 14px; font-size: 0.52rem; padding: 8px 10px; }
+            #back-btn  { top: 18px; left: 18px; }
             #surprise-btn { bottom: 18px; left: 18px; }
-            #pulse-wrap { top: 18px; right: 18px; }
+            #pulse-wrap   { top: 18px; right: 18px; }
         }
     </style>
 </head>
@@ -325,29 +305,29 @@
 
     <!-- 沈浸層 -->
     <div id="image-overlay">
-        <!-- 信封場景 -->
-        <div id="envelope-scene">
 
-            <!-- 明信片（在信封內，向上滑出） -->
-            <div id="postcard-wrap">
-                <div id="postcard">
-                    <img id="bg-image" src="" alt="" />
-                    <div id="card-caption"></div>
-                </div>
-                <div id="info-text">
-                    <h2 id="loc-name"></h2>
-                    <p id="loc-desc"></p>
-                </div>
+        <!-- 照片放大層（在信封之下，expand 後蓋住全屏） -->
+        <div id="photo-layer">
+            <div id="photo-wrap">
+                <img id="bg-image" src="" alt="" />
             </div>
+        </div>
 
-            <!-- 信封本體 -->
+        <!-- 信封舞台（放大後淡出） -->
+        <div id="envelope-stage">
             <div id="envelope">
                 <div id="flap-wrap">
                     <div id="flap"></div>
                 </div>
             </div>
-
         </div>
+
+        <!-- 文字（photo 展開後出現） -->
+        <div id="info-text">
+            <h2 id="loc-name"></h2>
+            <p id="loc-desc"></p>
+        </div>
+
     </div>
 
     <!-- 按鈕 -->
