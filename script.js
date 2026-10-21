@@ -2,7 +2,13 @@
  * 聲音郵局 (Sound Postcard)
  * 信封開蓋 → 照片從信封尺寸放大至全屏
  * 每個地點有專屬信封顏色
- * 郵戳退出時正確隱藏
+ *
+ * v2 修正重點：
+ *  - 更新 CARTO 底圖網址（需 key）
+ *  - 音訊：處理 autoplay 限制、連點競態、淡出後真正停止、緩衝快取
+ *  - 動畫時間軸可被取消（快速退出／切換不再出現幽靈郵戳或照片）
+ *  - 圖片預載、載入失敗處理
+ *  - 鍵盤操作（Esc 退出、標記可用 Tab 聚焦）、分頁隱藏時暫停音訊
  */
 
 const locations = [
@@ -98,68 +104,162 @@ const locations = [
     }
 ];
 
+// ── 設定 ──
+// 注意：前端的 key 是公開的，請到 CARTO 後台把它限制在你的網域
+const CARTO_KEY = 'cb1_48uy_1_e910454a7abf005bffc07b09';
+
 // ── 狀態 ──
 let currentLocId = null;
-const isMobile   = window.innerWidth < 768;
+let isOpen       = false;   // 沈浸層是否開啟
+let sessionId    = 0;       // 每次進入／退出遞增，用來作廢舊的非同步流程
+const isMobile   = () => window.innerWidth < 768;
+
+// ── DOM ──
+const $ = id => document.getElementById(id);
+const intro     = $('intro');
+const overlay   = $('image-overlay');
+const stage     = $('envelope-stage');
+const flap      = $('flap');
+const wrap      = $('photo-wrap');
+const bgImg     = $('bg-image');
+const info      = $('info-text');
+const stamp     = $('stamp');
+const backBtn   = $('back-btn');
+const surpriseBtn = $('surprise-btn');
+const pulseWrap   = $('pulse-wrap');
+const pulseRing   = $('pulse-ring');
+const pulseRipple = $('pulse-ripple');
+
+// ── 可取消的計時器 ──
+let timers = [];
+function later(fn, ms) {
+    const id = setTimeout(fn, ms);
+    timers.push(id);
+    return id;
+}
+function clearTimers() {
+    timers.forEach(clearTimeout);
+    timers = [];
+}
 
 // ── 引導頁 ──
-document.getElementById('intro').addEventListener('click', () => {
-    const intro = document.getElementById('intro');
+function dismissIntro() {
+    if (intro.classList.contains('fade-out')) return;
+    initAudio();   // 在使用者手勢中建立 AudioContext，避免瀏覽器 autoplay 限制
     intro.classList.add('fade-out');
     setTimeout(() => { intro.style.display = 'none'; }, 1900);
+}
+intro.addEventListener('click', dismissIntro);
+intro.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismissIntro(); }
 });
 
 // ── 地圖 ──
 const map = L.map('map', {
     zoomControl: false,
     maxBounds: [[20, 115], [50, 155]],
+    maxBoundsViscosity: 0.8,
     minZoom: 4
-}).setView([37.5, 137.5], isMobile ? 5 : 6);
+}).setView([37.5, 137.5], isMobile() ? 5 : 6);
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© CARTO'
-}).addTo(map);
+const tiles = L.tileLayer(
+    `https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_KEY}`,
+    {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 19
+    }
+).addTo(map);
+
+let tileErrWarned = false;
+tiles.on('tileerror', () => {
+    if (tileErrWarned) return;
+    tileErrWarned = true;
+    console.warn('地圖圖磚載入失敗：請檢查 CARTO_KEY 是否正確，或網域是否已授權。');
+});
 
 // ── Web Audio ──
-let audioCtx, gainNode, analyser, currentSource;
+let audioCtx, masterGain, analyser;
+let current   = null;   // { source, gain }
+let playToken = 0;      // 連點時作廢較早的載入
+const bufferCache = new Map();
 
 function initAudio() {
-    if (audioCtx) return;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    gainNode  = audioCtx.createGain();
-    analyser  = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-    gainNode.connect(analyser);
-    analyser.connect(audioCtx.destination);
-    startPulse();
+    if (!audioCtx) {
+        audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        analyser   = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        masterGain.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        startPulse();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+async function loadBuffer(url) {
+    if (bufferCache.has(url)) return bufferCache.get(url);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+    const buffer = await audioCtx.decodeAudioData(await res.arrayBuffer());
+    bufferCache.set(url, buffer);
+    return buffer;
+}
+
+// 淡出並真正停止（每個音源有自己的 gain，切換時可交叉淡入淡出）
+function fadeOutAndStop(node, seconds) {
+    if (!node) return;
+    const t = audioCtx.currentTime;
+    const g = node.gain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(Math.max(g.value, 0.0001), t);
+    g.exponentialRampToValueAtTime(0.0001, t + seconds);
+    try { node.source.stop(t + seconds + 0.05); } catch (e) {}
+    node.source.onended = () => {
+        try { node.source.disconnect(); node.gain.disconnect(); } catch (e) {}
+    };
 }
 
 async function playSound(url) {
     initAudio();
-    if (gainNode && currentSource) {
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
-    }
+    const token = ++playToken;
+    fadeOutAndStop(current, 0.8);
+    current = null;
+
     try {
-        const res    = await fetch(url);
-        const buffer = await audioCtx.decodeAudioData(await res.arrayBuffer());
-        if (currentSource) { try { currentSource.stop(); } catch(e) {} }
-        currentSource = audioCtx.createBufferSource();
-        currentSource.buffer = buffer;
-        currentSource.loop   = true;
-        currentSource.connect(gainNode);
-        gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(1, audioCtx.currentTime + 2);
-        currentSource.start();
-    } catch (e) { console.error('Audio error:', e); }
+        const buffer = await loadBuffer(url);
+        if (token !== playToken) return;   // 期間已退出或切換到別處
+
+        const source = audioCtx.createBufferSource();
+        const gain   = audioCtx.createGain();
+        const t      = audioCtx.currentTime;
+        source.buffer = buffer;
+        source.loop   = true;
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(1, t + 2);
+        source.connect(gain);
+        gain.connect(masterGain);
+        source.start();
+        current = { source, gain };
+    } catch (e) {
+        console.error('Audio error:', e);
+    }
 }
 
-// ── 脈衝可視化 ──
-const pulseWrap   = document.getElementById('pulse-wrap');
-const pulseRing   = document.getElementById('pulse-ring');
-const pulseRipple = document.getElementById('pulse-ripple');
-let rippleTimeout = null;
+function stopSound(seconds = 1.2) {
+    playToken++;
+    fadeOutAndStop(current, seconds);
+    current = null;
+}
 
+// 分頁切到背景時暫停，回來再繼續
+document.addEventListener('visibilitychange', () => {
+    if (!audioCtx) return;
+    if (document.hidden) audioCtx.suspend();
+    else if (isOpen) audioCtx.resume();
+});
+
+// ── 脈衝可視化 ──
+let rippleTimeout = null;
 function startPulse() {
     const dataArr = new Uint8Array(analyser.frequencyBinCount);
     function draw() {
@@ -167,7 +267,7 @@ function startPulse() {
         const avg   = dataArr.reduce((a, b) => a + b, 0) / dataArr.length;
         const ratio = avg / 255;
         pulseRing.style.transform = `scale(${(1 + ratio * 1.2).toFixed(3)})`;
-        pulseRing.style.boxShadow = `0 0 ${Math.round(ratio*22)}px rgba(255,255,255,${(ratio*0.9).toFixed(2)})`;
+        pulseRing.style.boxShadow = `0 0 ${Math.round(ratio * 22)}px rgba(255,255,255,${(ratio * 0.9).toFixed(2)})`;
         if (ratio > 0.28 && !rippleTimeout) {
             pulseRipple.style.animation = 'none';
             void pulseRipple.offsetWidth;
@@ -180,56 +280,54 @@ function startPulse() {
 }
 
 // ── 地圖標記 ──
-const customIcon = L.divIcon({ className: 'glow-point', iconSize: [8,8], iconAnchor: [4,4] });
+const customIcon = L.divIcon({ className: 'glow-point', iconSize: [8, 8], iconAnchor: [4, 4] });
 locations.forEach(loc => {
-    L.marker(loc.coords, { icon: customIcon })
+    L.marker(loc.coords, {
+        icon: customIcon,
+        title: loc.name,
+        alt: loc.name,
+        keyboard: true
+    })
         .addTo(map)
-        .on('click', () => enterImmersive(loc));
+        .on('click', () => {
+            if (isOpen) return;
+            initAudio();
+            enterImmersive(loc);
+        });
 });
 
-// ── 郵戳輔助（cloneNode 保證每次動畫重播） ──
-function triggerStamp(loc) {
-    const old   = document.getElementById('stamp');
-    const fresh = old.cloneNode(true);
-    fresh.id    = 'stamp';
-    // 確保初始完全隱藏
-    fresh.style.cssText = 'opacity:0; transform:rotate(-6deg) scale(1.9); transition:none;';
-    old.parentNode.replaceChild(fresh, old);
-
-    // 更新內容
-    fresh.querySelector('#stamp-loc').innerText   = loc.name.split('・')[0];
-    fresh.querySelector('#stamp-coord').innerText =
-        `${loc.coords[0]}° N, ${loc.coords[1]}° E`;
-
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-        fresh.classList.add('active');
-    }));
+// ── 圖片預載 ──
+function loadImage(src) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload  = () => resolve(true);
+        img.onerror = () => { console.warn('圖片載入失敗：', src); resolve(false); };
+        img.src = src;
+    });
 }
 
-// 隱藏郵戳（直接設 style，不依賴 class）
-function hideStamp() {
-    const stamp = document.getElementById('stamp');
-    // 移除 active class，讓 transition 生效
+// ── 郵戳（用 class + 強制重排重播動畫，不再 cloneNode） ──
+function triggerStamp(loc) {
+    $('stamp-loc').textContent   = loc.name.split('・')[0];
+    $('stamp-coord').textContent = `${loc.coords[0]}° N, ${loc.coords[1]}° E`;
     stamp.classList.remove('active');
-    // 強制設定隱藏狀態
-    stamp.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-    stamp.style.opacity    = '0';
-    stamp.style.transform  = 'rotate(-6deg) scale(0.85)';
+    void stamp.offsetWidth;
+    stamp.classList.add('active');
+}
+function hideStamp() {
+    stamp.classList.remove('active');
 }
 
 // ── 進入沈浸模式 ──
 function enterImmersive(loc) {
+    clearTimers();
+    map.stop();
+    const session = ++sessionId;
     currentLocId = loc.id;
-
-    const overlay = document.getElementById('image-overlay');
-    const stage   = document.getElementById('envelope-stage');
-    const flap    = document.getElementById('flap');
-    const wrap    = document.getElementById('photo-wrap');
-    const bgImg   = document.getElementById('bg-image');
-    const info    = document.getElementById('info-text');
-    const root    = document.documentElement;
+    isOpen = true;
 
     // 注入信封顏色
+    const root = document.documentElement;
     root.style.setProperty('--env-main', loc.envColor[0]);
     root.style.setProperty('--env-dark', loc.envColor[1]);
 
@@ -242,74 +340,64 @@ function enterImmersive(loc) {
     info.style.opacity = '0';
     hideStamp();
 
-    // 填充內容
+    // 填充內容（同時開始預載圖片）
+    const imageReady = loadImage(loc.image);
     bgImg.src = loc.image;
     bgImg.alt = loc.name;
-    document.getElementById('loc-name').innerText = loc.name;
-    document.getElementById('loc-desc').innerText  = loc.desc;
+    $('loc-name').textContent = loc.name;
+    $('loc-desc').textContent = loc.desc;
 
     // 打開遮罩
     overlay.classList.add('open');
     overlay.classList.remove('phase-photo');
+    requestAnimationFrame(() => overlay.classList.add('phase-envelope'));
 
-    requestAnimationFrame(() => {
-        overlay.classList.add('phase-envelope');
-    });
-
-    document.getElementById('back-btn').style.display = 'block';
+    backBtn.style.display = 'block';
+    backBtn.focus({ preventScroll: true });
     pulseWrap.classList.add('visible');
 
     // 播放聲音（與動畫並行）
     playSound(loc.audio);
 
-    // ── 動畫時間軸 ──
+    // ── 動畫時間軸（全部可被 clearTimers 取消） ──
     // 0.5s：信封蓋打開
-    setTimeout(() => { flap.classList.add('open'); }, 500);
+    later(() => flap.classList.add('open'), 500);
 
-    // 1.5s：照片開始從信封尺寸放大
-    setTimeout(() => {
-        bgImg.onload = startPhotoExpand;
-        if (bgImg.complete) startPhotoExpand();
-        else bgImg.onload = startPhotoExpand;
-
-        function startPhotoExpand() {
-            bgImg.onload = null;
-            // 先讓照片在信封尺寸顯示
-            wrap.style.opacity = '1';
-            // 下一幀開始放大
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    wrap.classList.add('expand');
-                    overlay.classList.add('phase-photo');
-                    // 信封淡出
-                    setTimeout(() => { stage.classList.add('hidden'); }, 400);
-                });
-            });
-        }
+    // 1.5s：照片開始從信封尺寸放大（若圖片還沒載好會等它）
+    later(async () => {
+        await imageReady;
+        if (session !== sessionId) return;
+        wrap.style.opacity = '1';
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (session !== sessionId) return;
+            wrap.classList.add('expand');
+            overlay.classList.add('phase-photo');
+            later(() => stage.classList.add('hidden'), 400);
+        }));
     }, 1500);
 
     // 2.8s：文字淡入
-    setTimeout(() => { info.style.opacity = '1'; }, 2800);
+    later(() => { info.style.opacity = '1'; }, 2800);
 
     // 3.6s：郵戳蓋下
-    setTimeout(() => triggerStamp(loc), 3600);
+    later(() => triggerStamp(loc), 3600);
 }
 
 // ── 退出 ──
-document.getElementById('back-btn').addEventListener('click', exitImmersive);
+backBtn.addEventListener('click', exitImmersive);
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && isOpen) exitImmersive();
+});
 
 function exitImmersive() {
-    const overlay = document.getElementById('image-overlay');
-    const stage   = document.getElementById('envelope-stage');
-    const wrap    = document.getElementById('photo-wrap');
-    const flap    = document.getElementById('flap');
+    clearTimers();
+    sessionId++;
+    isOpen = false;
 
-    // 立刻隱藏郵戳
     hideStamp();
-
     overlay.classList.remove('open', 'phase-envelope', 'phase-photo');
-    document.getElementById('back-btn').style.display = 'none';
-    document.getElementById('info-text').style.opacity = '0';
+    backBtn.style.display = 'none';
+    info.style.opacity = '0';
     pulseWrap.classList.remove('visible');
 
     // 重置信封和照片
@@ -318,24 +406,24 @@ function exitImmersive() {
     stage.classList.remove('visible', 'hidden');
     flap.classList.remove('open');
 
-    if (gainNode && audioCtx) {
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
-    }
+    stopSound(1.2);
 }
 
 // ── Surprise Me ──
-document.getElementById('surprise-btn').addEventListener('click', () => {
+surpriseBtn.addEventListener('click', () => {
+    initAudio();   // 這裡是使用者手勢，之後 setTimeout 內播放才不會被擋
     const pool = locations.filter(l => l.id !== currentLocId);
     const pick = pool[Math.floor(Math.random() * pool.length)];
-    if (currentLocId) {
+    if (isOpen) {
         exitImmersive();
-        setTimeout(() => flyAndEnter(pick), 500);
+        later(() => flyAndEnter(pick), 500);
     } else {
+        clearTimers();
         flyAndEnter(pick);
     }
 });
 
 function flyAndEnter(loc) {
-    map.flyTo(loc.coords, isMobile ? 7 : 9, { duration: 2 });
-    setTimeout(() => enterImmersive(loc), 2300);
+    map.flyTo(loc.coords, isMobile() ? 7 : 9, { duration: 2 });
+    later(() => enterImmersive(loc), 2300);
 }
