@@ -3,6 +3,8 @@
  * 信封開蓋 → 照片從信封尺寸放大至全屏
  * 每個地點有專屬信封顏色
  *
+ * v3：新增英文／日文介面（EN / 日本語）。
+ *
  * v2 修正重點：
  *  - 更新 CARTO 底圖網址（需 key）
  *  - 音訊：處理 autoplay 限制、連點競態、淡出後真正停止、緩衝快取
@@ -14,95 +16,96 @@
 const locations = [
     {
         id: "nara",
-        name: "奈良・唐招提寺",
         coords: [34.6761, 135.7844],
         audio: "audio/nara.mp3",
         image: "images/nara.webp",
-        desc: "2026.01.16。冬日午後的寺院，鳥鳴聲在木造建築間迴盪，空氣中彷彿能聽見寧靜。",
-        envColor: ["#b8c4b8", "#96a896"]   // 寺院青灰
+        name: { en: "Nara · Toshodai-ji", ja: "奈良・唐招提寺" },
+        desc: { en: "16 Jan 2026. A winter afternoon at the temple: birdsong echoing among the wooden buildings, as if quiet itself could be heard.", ja: "2026.01.16。冬の午後の寺院。木造の建物に鳥の声が響き、静けさそのものが聞こえてくるようです。" },
+        envColor: ["#b8c4b8", "#96a896"]
     },
     {
         id: "fushimi",
-        name: "京都・伏見稻荷",
         coords: [34.9671, 135.7727],
         audio: "audio/fushimi.mp3",
         image: "images/fushimi.webp",
-        desc: "2026.01.12。千本鳥居旁的流水聲，午後的泉水帶著苔蘚的濕氣與山林的幽靜。",
-        envColor: ["#c8695a", "#a84838"]   // 鳥居硃紅
+        name: { en: "Kyoto · Fushimi Inari", ja: "京都・伏見稲荷" },
+        desc: { en: "12 Jan 2026. Flowing water beside the thousand torii gates; the afternoon spring water carries the damp of moss and the hush of the mountain forest.", ja: "2026.01.12。千本鳥居のそばを流れる水の音。午後の湧き水は、苔の湿り気と山林の静けさを帯びています。" },
+        envColor: ["#c8695a", "#a84838"]
     },
     {
         id: "arashiyama",
-        name: "京都・嵐山",
         coords: [35.0094, 135.6667],
         audio: "audio/arashiyama.mp3",
         image: "images/arashiyama.webp",
-        desc: "2026.01.14。渡月橋邊的風聲與桂川細浪，竹林深處偶爾傳來的葉片摩擦聲。",
-        envColor: ["#8aaa78", "#6a8a58"]   // 竹林綠
+        name: { en: "Kyoto · Arashiyama", ja: "京都・嵐山" },
+        desc: { en: "14 Jan 2026. Wind and gentle ripples of the Katsura River beside Togetsukyo Bridge, with leaves rubbing together deep in the bamboo grove.", ja: "2026.01.14。渡月橋のほとりの風と桂川の細かな波音、竹林の奥からときおり聞こえる葉の擦れる音。" },
+        envColor: ["#8aaa78", "#6a8a58"]
     },
     {
         id: "takamatsu",
-        name: "高松・高松港",
         coords: [34.3503, 134.0465],
         audio: "audio/takamatsu.mp3",
         image: "images/takamatsu.webp",
-        desc: "2026.03.11。瀨戶內海的平靜海風，夾雜著遠處微弱的船笛聲。",
-        envColor: ["#7aaabf", "#5a8aaa"]   // 海藍
+        name: { en: "Takamatsu · near the port", ja: "高松・港の近く" },
+        desc: { en: "11 Mar 2026. Calm sea wind of the Seto Inland Sea, heard from a rooftop near the port, with a faint ship’s horn in the distance.", ja: "2026.03.11。港の近くの屋上で聞いた、瀬戸内海の穏やかな海風。遠くにかすかな船の汽笛が混じります。" },
+        envColor: ["#7aaabf", "#5a8aaa"]
     },
     {
         id: "kanazawa",
-        name: "金澤・雨聲",
         coords: [36.5621, 136.6627],
         audio: "audio/kanazawa.mp3",
         image: "images/kanazawa.webp",
-        desc: "2026.03.03。北陸地區冬日常見的雨，落在鈴木大拙舘上的滴答聲。",
-        envColor: ["#9898a8", "#787888"]   // 雨雲灰紫
+        name: { en: "Kanazawa · Rain", ja: "金沢・雨音" },
+        desc: { en: "3 Mar 2026. The winter rain common in the Hokuriku region, dripping onto the Suzuki Daisetz Museum.", ja: "2026.03.03。北陸の冬によくある雨が、鈴木大拙館に落ちるしずくの音。" },
+        envColor: ["#9898a8", "#787888"]
     },
     {
         id: "uji",
-        name: "宇治・宇治川",
         coords: [34.8893, 135.8077],
         audio: "audio/uji.mp3",
         image: "images/uji.webp",
-        desc: "2026.01.17。宇治橋下湍急的川流聲，伴隨著兩岸茶香。",
-        envColor: ["#9ab87a", "#7a9858"]   // 抹茶綠
+        name: { en: "Uji · Uji River", ja: "宇治・宇治川" },
+        desc: { en: "17 Jan 2026. The rushing current of the Uji River beneath Uji Bridge, with the scent of tea on both banks.", ja: "2026.01.17。宇治橋の下を勢いよく流れる川の音と、両岸に漂うお茶の香り。" },
+        envColor: ["#9ab87a", "#7a9858"]
     },
     {
         id: "inapark",
-        name: "長野・伊那公園",
         coords: [35.8361, 137.9711],
         audio: "audio/inapark.mp3",
         image: "images/inapark.webp",
-        desc: "2026.02.27。信州高地的清晨，公園內高大松樹間的鳥鳴，空氣帶著涼意。",
-        envColor: ["#c8c0a0", "#a8a080"]   // 枯草米色
+        name: { en: "Nagano · Ina Park", ja: "長野・伊那公園" },
+        desc: { en: "27 Feb 2026. An early morning in the Shinshu highlands: birdsong among the tall pines in the park, the air cool.", ja: "2026.02.27。信州の高原の早朝。公園の高い松の間に響く鳥の声と、ひんやりとした空気。" },
+        envColor: ["#c8c0a0", "#a8a080"]
     },
     {
         id: "inahigh",
-        name: "長野・伊那北高中",
         coords: [35.8505, 137.9614],
         audio: "audio/inahigh.mp3",
         image: "images/inahigh.webp",
-        desc: "2026.02.26。校園放學後的寧靜，遠處運動場的呼喊與南阿爾卑斯山的風。",
-        envColor: ["#b0c0d8", "#8aaac0"]   // 山嵐淡藍
+        name: { en: "Nagano · Ina Kita High School", ja: "長野・伊那北高校" },
+        desc: { en: "26 Feb 2026. The calm of the school grounds after classes, with shouts from a distant sports field and the wind from the Southern Alps.", ja: "2026.02.26。放課後の校庭の静けさ。遠くの運動場から届く声と、南アルプスの風。" },
+        envColor: ["#b0c0d8", "#8aaac0"]
     },
     {
         id: "chofu",
-        name: "調布・花火大會",
         coords: [35.6385, 139.5286],
         audio: "audio/chofu.mp3",
         image: "images/chofu.webp",
-        desc: "2025.09.20。多摩川岸邊的夏末秋初，巨大的花火在夜空中綻放，震撼的爆炸聲劃破靜謐。",
-        envColor: ["#3a3a58", "#252540"]   // 夜空深藍
+        name: { en: "Chofu · Fireworks", ja: "調布・花火大会" },
+        desc: { en: "20 Sep 2025. Late summer on the Tama River bank: huge fireworks bloom in the night sky, and the blasts break the quiet.", ja: "2025.09.20。多摩川の岸辺の夏の終わり。夜空に大きく咲く花火と、静けさを破る爆発音。" },
+        envColor: ["#3a3a58", "#252540"]
     },
     {
         id: "hitotsubashi",
-        name: "國立・一橋祭",
         coords: [35.6946, 139.4442],
         audio: "audio/hitotsubashi.mp3",
         image: "images/hitotsubashi.webp",
-        desc: "2025.11.22。深秋的校園祭典，人們圍在一起歡快跳舞，充滿溫度的歡笑與節奏。",
-        envColor: ["#c09858", "#a07838"]   // 秋葉金棕
-    }
+        name: { en: "Kunitachi · Hitotsubashi Festival", ja: "国立・一橋祭" },
+        desc: { en: "22 Nov 2025. A late-autumn campus festival: people gathering to dance, full of warmth, laughter, and rhythm.", ja: "2025.11.22。晩秋の学園祭。人々が輪になって楽しく踊り、笑い声とリズムに温かさが満ちています。" },
+        envColor: ["#c09858", "#a07838"]
+    },
 ];
+
 
 // ── 設定 ──
 // 注意：前端的 key 是公開的，請到 CARTO 後台把它限制在你的網域
@@ -129,6 +132,69 @@ const surpriseBtn = $('surprise-btn');
 const pulseWrap   = $('pulse-wrap');
 const pulseRing   = $('pulse-ring');
 const pulseRipple = $('pulse-ripple');
+
+// ── 語言 / Languages (English · 日本語) ──
+const I18N = {
+    en: { title: 'Sound Postcard', sub: 'A Collection of Real Moments', hint: 'Click anywhere to enter',
+          back: '← BACK', surprise: 'SURPRISE ME', collected: 'Collected at:', original: 'Original Recording',
+          introAria: 'Enter Sound Postcard', backAria: 'Back to the map',
+          desc: 'Sound Postcard — a collection of real moments, in sound and image' },
+    ja: { title: '音の郵便局', sub: 'Sound Postcard — 実際の瞬間のコレクション', hint: 'どこかをクリックして入る',
+          back: '← 戻る', surprise: 'おまかせ', collected: '録音地：', original: 'オリジナル録音',
+          introAria: 'Sound Postcard に入る', backAria: '地図に戻る',
+          desc: 'Sound Postcard — 音と写真で集める、実際の旅の瞬間' }
+};
+let lang = 'en';
+try {
+    const q = new URLSearchParams(location.search).get('lang');
+    const saved = localStorage.getItem('sp-lang');
+    lang = (q && I18N[q]) ? q : ((saved && I18N[saved]) ? saved : 'en');
+} catch (e) { lang = 'en'; }
+const tr = obj => obj[lang] || obj.en;
+let currentLoc = null;
+const markers  = [];
+
+function setStampText(loc) {
+    $('stamp-label').textContent = I18N[lang].collected;
+    $('stamp-orig').textContent  = I18N[lang].original;
+    $('stamp-loc').textContent   = tr(loc.name).split(/[・·]/)[0].trim();
+}
+
+function applyLang(l) {
+    if (!I18N[l]) return;
+    lang = l;
+    try { localStorage.setItem('sp-lang', l); } catch (e) {}
+    const t = I18N[l];
+    document.documentElement.lang = l;
+    document.title = t.title + ' | Sound Postcard';
+    const md = document.querySelector('meta[name="description"]');
+    if (md) md.setAttribute('content', t.desc);
+    $('intro-title').textContent = t.title;
+    $('intro-sub').textContent   = t.sub;
+    $('intro-hint').textContent  = t.hint;
+    intro.setAttribute('aria-label', t.introAria);
+    backBtn.textContent = t.back;
+    backBtn.setAttribute('aria-label', t.backAria);
+    surpriseBtn.textContent = t.surprise;
+    document.querySelectorAll('#lang button').forEach(b => {
+        const on = b.dataset.lang === l;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    markers.forEach(({ m, loc }) => {
+        const el = m.getElement && m.getElement();
+        if (el) { el.title = tr(loc.name); el.setAttribute('alt', tr(loc.name)); }
+    });
+    if (currentLoc) {
+        setStampText(currentLoc);
+        if (isOpen) {
+            $('loc-name').textContent = tr(currentLoc.name);
+            $('loc-desc').textContent = tr(currentLoc.desc);
+            bgImg.alt = tr(currentLoc.name);
+        }
+    }
+}
+document.querySelectorAll('#lang button').forEach(b => b.addEventListener('click', () => applyLang(b.dataset.lang)));
 
 // ── 可取消的計時器 ──
 let timers = [];
@@ -282,18 +348,18 @@ function startPulse() {
 // ── 地圖標記 ──
 const customIcon = L.divIcon({ className: 'glow-point', iconSize: [8, 8], iconAnchor: [4, 4] });
 locations.forEach(loc => {
-    L.marker(loc.coords, {
+    const m = L.marker(loc.coords, {
         icon: customIcon,
-        title: loc.name,
-        alt: loc.name,
+        title: tr(loc.name),
+        alt: tr(loc.name),
         keyboard: true
-    })
-        .addTo(map)
-        .on('click', () => {
-            if (isOpen) return;
-            initAudio();
-            enterImmersive(loc);
-        });
+    });
+    markers.push({ m, loc });
+    m.addTo(map).on('click', () => {
+        if (isOpen) return;
+        initAudio();
+        enterImmersive(loc);
+    });
 });
 
 // ── 圖片預載 ──
@@ -308,7 +374,7 @@ function loadImage(src) {
 
 // ── 郵戳（用 class + 強制重排重播動畫，不再 cloneNode） ──
 function triggerStamp(loc) {
-    $('stamp-loc').textContent   = loc.name.split('・')[0];
+    setStampText(loc);
     $('stamp-coord').textContent = `${loc.coords[0]}° N, ${loc.coords[1]}° E`;
     stamp.classList.remove('active');
     void stamp.offsetWidth;
@@ -324,6 +390,7 @@ function enterImmersive(loc) {
     map.stop();
     const session = ++sessionId;
     currentLocId = loc.id;
+    currentLoc = loc;
     isOpen = true;
 
     // 注入信封顏色
@@ -343,9 +410,9 @@ function enterImmersive(loc) {
     // 填充內容（同時開始預載圖片）
     const imageReady = loadImage(loc.image);
     bgImg.src = loc.image;
-    bgImg.alt = loc.name;
-    $('loc-name').textContent = loc.name;
-    $('loc-desc').textContent = loc.desc;
+    bgImg.alt = tr(loc.name);
+    $('loc-name').textContent = tr(loc.name);
+    $('loc-desc').textContent = tr(loc.desc);
 
     // 打開遮罩
     overlay.classList.add('open');
@@ -427,3 +494,6 @@ function flyAndEnter(loc) {
     map.flyTo(loc.coords, isMobile() ? 7 : 9, { duration: 2 });
     later(() => enterImmersive(loc), 2300);
 }
+
+// ── 初始語言 ──
+applyLang(lang);
