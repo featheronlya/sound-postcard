@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="description" content="聲音郵局 — 以聲音與影像收藏真實的旅途片刻">
+    <meta name="description" content="Sound Postcard — a collection of real moments, in sound and image">
     <meta name="theme-color" content="#000000">
-    <title>聲音郵局 | Sound Postcard</title>
+    <title>Sound Postcard</title>
 
     <link rel="preconnect" href="https://basemaps.cartocdn.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;500&family=Noto+Serif+JP:wght@300;500&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
@@ -36,7 +36,7 @@
             margin: 0; padding: 0; height: 100%;
             background: #000; color: #fff;
             overflow: hidden;
-            font-family: 'Noto Serif TC', serif;
+            font-family: 'Noto Serif JP', 'Noto Serif TC', serif;
             touch-action: manipulation;
         }
 
@@ -268,6 +268,16 @@
         #back-btn     { top: 28px; left: 28px; display: none; }
         #surprise-btn { bottom: 28px; left: 28px; background: rgba(0,0,0,0.35); }
 
+        /* ── 語言切換 ── */
+        #lang { position: fixed; top: 28px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; gap: 6px; }
+        #lang button {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.28); color: #fff;
+            padding: 5px 12px; font-family: 'Cormorant Garamond', 'Noto Serif JP', serif;
+            letter-spacing: 1px; font-size: 0.74rem; cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+        }
+        #lang button:hover, #lang button.active { background: #fff; color: #000; }
+
         /* ── 音頻脈衝 ── */
         #pulse-wrap {
             position: fixed; top: 28px; right: 28px; z-index: 3100;
@@ -309,6 +319,7 @@
             #back-btn  { top: 18px; left: 18px; }
             #surprise-btn { bottom: 18px; left: 18px; }
             #pulse-wrap   { top: 18px; right: 18px; }
+            #lang { top: 18px; }
         }
 
         /* ── 減少動態（系統設定要求時） ── */
@@ -323,10 +334,10 @@
 <body>
 
     <!-- 引導頁 -->
-    <div id="intro" role="button" tabindex="0" aria-label="進入聲音郵局">
-        <h1 id="intro-title">聲音郵局</h1>
+    <div id="intro" role="button" tabindex="0" aria-label="Enter Sound Postcard">
+        <h1 id="intro-title">Sound Postcard</h1>
         <div id="intro-line"></div>
-        <p id="intro-sub">Sound Postcard — A Collection of Real Moments</p>
+        <p id="intro-sub">A Collection of Real Moments</p>
         <span id="intro-hint">Click anywhere to enter</span>
     </div>
 
@@ -360,15 +371,21 @@
 
     </div>
 
+    <!-- 語言切換 -->
+    <div id="lang" role="group" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button>
+        <button data-lang="ja" aria-pressed="false">日本語</button>
+    </div>
+
     <!-- 按鈕 -->
-    <button id="back-btn" class="ui-btn" aria-label="返回地圖">← BACK</button>
+    <button id="back-btn" class="ui-btn" aria-label="Back to the map">← BACK</button>
     <button id="surprise-btn" class="ui-btn">SURPRISE ME</button>
 
     <!-- 郵戳 -->
     <div id="stamp" aria-hidden="true">
-        Collected at: <span id="stamp-loc"></span><br>
+        <span id="stamp-label">Collected at:</span> <span id="stamp-loc"></span><br>
         <span id="stamp-coord"></span><br>
-        Original Recording
+        <span id="stamp-orig">Original Recording</span>
     </div>
 
     <!-- 音頻脈衝 -->
