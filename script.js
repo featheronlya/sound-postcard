@@ -83,7 +83,7 @@ const locations = [
         audio: "audio/inahigh.mp3",
         image: "images/inahigh.webp",
         name: { en: "Nagano · Ina Kita High School", ja: "長野・伊那北高校" },
-        desc: { en: "26 Feb 2026. The calm of the school grounds after classes, with shouts from a distant sports field and the wind from the Southern Alps.", ja: "2026.02.26。放課後の校庭の静けさ。遠くの運動場から届く声と、南アルプスの風。" },
+        desc: { en: "26 Feb 2026. The dismissal bell at the end of the school day, with shouts from a distant sports field and the wind from the Southern Alps.", ja: "2026.02.26。放課後を告げるチャイムの音。遠くの運動場から届く声と、南アルプスの風。" },
         envColor: ["#b0c0d8", "#8aaac0"]
     },
     {
