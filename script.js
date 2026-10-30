@@ -29,7 +29,7 @@ const locations = [
         audio: "audio/fushimi.mp3",
         image: "images/fushimi.webp",
         name: { en: "Kyoto · Fushimi Inari", ja: "京都・伏見稲荷" },
-        desc: { en: "12 Jan 2026. Flowing water beside the thousand torii gates; the afternoon spring water carries the damp of moss and the hush of the mountain forest.", ja: "2026.01.12。千本鳥居のそばを流れる水の音。午後の湧き水は、苔の湿り気と山林の静けさを帯びています。" },
+        desc: { en: "12 Jan 2026. Flowing water beside the thousand torii gates, with small bubbles breaking within the stream; the afternoon spring water carries the damp of moss and the hush of the mountain forest.", ja: "2026.01.12。千本鳥居のそばを流れる水の音に、小さな泡のはじける音が混じります。午後の湧き水は、苔の湿り気と山林の静けさを帯びています。" },
         envColor: ["#c8695a", "#a84838"]
     },
     {
@@ -38,7 +38,7 @@ const locations = [
         audio: "audio/arashiyama.mp3",
         image: "images/arashiyama.webp",
         name: { en: "Kyoto · Arashiyama", ja: "京都・嵐山" },
-        desc: { en: "14 Jan 2026. Wind and gentle ripples of the Katsura River beside Togetsukyo Bridge, with leaves rubbing together deep in the bamboo grove.", ja: "2026.01.14。渡月橋のほとりの風と桂川の細かな波音、竹林の奥からときおり聞こえる葉の擦れる音。" },
+        desc: { en: "14 Jan 2026. A shakuhachi performance beside Togetsukyo Bridge, with the wind and gentle ripples of the Katsura River, and leaves rubbing together deep in the bamboo grove.", ja: "2026.01.14。渡月橋のほとりで聞こえた尺八の演奏。風と桂川の細かな波音、竹林の奥からときおり聞こえる葉の擦れる音も混じります。" },
         envColor: ["#8aaa78", "#6a8a58"]
     },
     {
@@ -227,6 +227,18 @@ const map = L.map('map', {
     maxBoundsViscosity: 0.8,
     minZoom: 4
 }).setView([37.5, 137.5], isMobile() ? 5 : 6);
+
+// 截圖用：網址加 ?view=takamatsu 會放大到高松附近；?view=setouchi 看整個瀨戶內海。
+// 只改開啟時的視角，預設（沒有參數）仍是日本全圖。可再加 &zoom=數字 自行微調。
+(function () {
+    try {
+        const q = new URLSearchParams(location.search);
+        const v = q.get('view');
+        const z = parseInt(q.get('zoom'), 10);
+        if (v === 'takamatsu') map.setView([34.35, 134.05], z || (isMobile() ? 9 : 10));
+        else if (v === 'setouchi') map.setView([34.35, 133.9], z || (isMobile() ? 8 : 9));
+    } catch (e) {}
+})();
 
 const tiles = L.tileLayer(
     `https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_KEY}`,
