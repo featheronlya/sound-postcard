@@ -314,8 +314,13 @@
         }
 
         /* ── 地圖標記 ── */
-        .glow-point {
-            width: 8px; height: 8px; background: #fff; border-radius: 50%;
+        /* 注意：Leaflet 用元素自己的 transform 來定位標記，
+           所以呼吸動畫不能放在 .glow-point 本身，否則會蓋掉定位，
+           讓所有光點都擠到地圖左上角。動畫改放在偽元素上。 */
+        .glow-point { width: 8px; height: 8px; }
+        .glow-point::before {
+            content: ''; position: absolute; inset: 0;
+            border-radius: 50%; background: #fff;
             box-shadow: 0 0 10px #fff;
             animation: breathe 4s infinite ease-in-out;
         }
@@ -336,7 +341,7 @@
 
         /* ── 減少動態（系統設定要求時） ── */
         @media (prefers-reduced-motion: reduce) {
-            .glow-point { animation: none; opacity: 0.8; }
+            .glow-point::before { animation: none; opacity: 0.8; }
             #flap { transition-duration: 0.01s; }
             #photo-wrap { transition-duration: 0.3s; }
             #stamp.active { animation-duration: 0.01s; }
